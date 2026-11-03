@@ -37,7 +37,7 @@ sau kuaishou check --account <account>
 sau kuaishou upload-video \
   --account <account> \
   --file <video-path> \
-  --title "<title>" \
+  [--title "<title>"] \
   [--desc "<description>"] \
   [--tags tag1,tag2] \
   [--schedule "YYYY-MM-DD HH:MM"] \
@@ -49,8 +49,8 @@ sau kuaishou upload-video \
 - 必填参数:
   - `--account`
   - `--file`
-  - `--title`
 - 可选参数:
+  - `--title`
   - `--desc`
   - `--tags`
   - `--schedule`

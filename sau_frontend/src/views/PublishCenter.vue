@@ -62,6 +62,35 @@
             />
           </div>
 
+          <!-- 发布结果明细（按 视频×账号） -->
+          <div v-if="tab.publishJob" class="publish-job-panel">
+            <div class="publish-job-header">
+              <h3>发布结果</h3>
+              <el-tag :type="publishJobTagType(tab.publishJob.status)" size="small">
+                {{ publishJobStatusText(tab.publishJob) }}
+              </el-tag>
+            </div>
+            <el-table
+              :data="tab.publishJob.results || []"
+              size="small"
+              border
+              stripe
+              max-height="280"
+              empty-text="暂无明细"
+            >
+              <el-table-column prop="fileName" label="视频/内容" min-width="160" show-overflow-tooltip />
+              <el-table-column prop="accountName" label="账号" min-width="100" show-overflow-tooltip />
+              <el-table-column label="状态" width="90">
+                <template #default="{ row }">
+                  <el-tag :type="resultStatusTagType(row.status)" size="small">
+                    {{ resultStatusText(row.status) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="message" label="说明" min-width="180" show-overflow-tooltip />
+            </el-table>
+          </div>
+
           <!-- 视频上传区域：文章模式隐藏 -->
           <div v-if="!isArticleTab(tab)" class="upload-section">
             <h3>视频</h3>
@@ -687,11 +716,17 @@
                   </el-button>
                 </div>
                 <div class="schedule-item">
-                  <span class="label">开始天数：</span>
-                  <el-select v-model="tab.startDays" placeholder="选择开始天数">
-                    <el-option :label="'明天'" :value="0" />
-                    <el-option :label="'后天'" :value="1" />
-                  </el-select>
+                  <span class="label">起始日期：</span>
+                  <el-date-picker
+                    v-model="tab.startDate"
+                    type="date"
+                    placeholder="选择起始日期"
+                    format="YYYY年MM月DD日"
+                    value-format="YYYY-MM-DD"
+                    :disabled-date="disabledScheduleStartDate"
+                    :clearable="false"
+                  />
+                  <span class="schedule-hint">从该日起按每日时刻依次排期</span>
                 </div>
               </div>
             </div>
@@ -716,10 +751,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { Upload, Plus, Close, Folder } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { useAccountStore } from '@/stores/account'
+import { useAccountStore, PLATFORM_TYPES } from '@/stores/account'
+import { usePublishLogStore } from '@/stores/publishLog'
 import { useAppStore } from '@/stores/app'
 import { materialApi } from '@/api/material'
 import { accountApi } from '@/api/account'
@@ -741,6 +777,8 @@ let tabCounter = 1
 
 // 获取应用状态管理
 const appStore = useAppStore()
+const accountStore = useAccountStore()
+const publishLog = usePublishLogStore()
 
 // 上传相关状态
 const uploadOptionsVisible = ref(false)
@@ -782,8 +820,9 @@ const defaultTabInit = {
   scheduleEnabled: false, // 定时发布开关
   videosPerDay: 1, // 每天发布视频数量
   dailyTimes: ['10:00'], // 每天发布时间点列表
-  startDays: 0, // 从今天开始计算的发布天数，0表示明天，1表示后天
+  startDate: '', // 定时发布起始日期 YYYY-MM-DD，提交时换算为 startDays
   publishStatus: null, // 发布状态，包含message和type
+  publishJob: null, // 后台任务结果 { jobId, status, results, ... }
   publishing: false, // 发布状态，用于控制按钮loading效果
   isDraft: false, // 是否保存为草稿，仅视频号平台可见
   isOriginal: true, // 是否标记为原创（视频号，默认勾选）
@@ -891,14 +930,189 @@ const zhihuCreationStatementOptions = [
   '无声明'
 ]
 
+const SCHEDULE_MAX_AHEAD_DAYS = 14
+
+const formatLocalDate = (date) => {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+const getDefaultStartDate = () => {
+  const date = new Date()
+  date.setHours(0, 0, 0, 0)
+  date.setDate(date.getDate() + 1)
+  return formatLocalDate(date)
+}
+
+const parseLocalDate = (dateStr) => {
+  const [y, m, d] = String(dateStr).split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+/** 后端 startDays：0=明天，1=后天；由起始日期换算 */
+const startDateToStartDays = (dateStr) => {
+  if (!dateStr) return 0
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const selected = parseLocalDate(dateStr)
+  const diffDays = Math.round((selected - today) / 86400000)
+  return Math.max(0, diffDays - 1)
+}
+
+const disabledScheduleStartDate = (date) => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const min = new Date(today)
+  min.setDate(min.getDate() + 1)
+  const max = new Date(today)
+  max.setDate(max.getDate() + SCHEDULE_MAX_AHEAD_DAYS)
+  const t = date.getTime()
+  return t < min.getTime() || t > max.getTime()
+}
+
 // helper to create a fresh deep-copied tab from defaultTabInit
 const makeNewTab = () => {
   // prefer structuredClone when available (newer browsers/node), fallback to JSON
+  let tab
   try {
-    return typeof structuredClone === 'function' ? structuredClone(defaultTabInit) : JSON.parse(JSON.stringify(defaultTabInit))
+    tab = typeof structuredClone === 'function' ? structuredClone(defaultTabInit) : JSON.parse(JSON.stringify(defaultTabInit))
   } catch (e) {
-    return JSON.parse(JSON.stringify(defaultTabInit))
+    tab = JSON.parse(JSON.stringify(defaultTabInit))
   }
+  tab.startDate = getDefaultStartDate()
+  return tab
+}
+
+const PLATFORM_TYPE_NAME = {
+  1: '小红书',
+  2: '视频号',
+  3: '抖音',
+  4: '快手',
+  5: '百家号',
+  6: 'B站',
+  7: '今日头条',
+  8: '搜狐',
+  9: '知乎'
+}
+
+const syncDisplayFileList = (tab) => {
+  tab.displayFileList = [...(tab.fileList || []).map((item) => ({
+    name: item.name,
+    url: item.url
+  }))]
+}
+
+const getAccountIdsForPlatform = (platformType) => {
+  return accountStore.accounts
+    .filter((acc) => Number(acc.type) === Number(platformType))
+    .map((acc) => acc.id)
+}
+
+/** 为发布页分配账号：优先用户已选，不足时用同平台其余账号补齐，再按序取一个 */
+const pickAccountIdForIndex = (platformType, preferredIds, index) => {
+  const allIds = getAccountIdsForPlatform(platformType)
+  if (!allIds.length) return null
+  const preferred = (preferredIds || []).filter((id) => allIds.includes(id))
+  const rest = allIds.filter((id) => !preferred.includes(id))
+  const pool = preferred.length ? [...preferred, ...rest] : allIds
+  return pool[index % pool.length]
+}
+
+const copyTabPublishSettings = (fromTab, toTab) => {
+  toTab.selectedPlatform = fromTab.selectedPlatform
+  toTab.title = fromTab.title
+  // 话题不直接复制：多视频拆页时每个发布页各自随机，避免全部相同
+  toTab.selectedTopics = []
+  toTab.scheduleEnabled = fromTab.scheduleEnabled
+  toTab.videosPerDay = fromTab.videosPerDay
+  toTab.dailyTimes = [...(fromTab.dailyTimes || ['10:00'])]
+  toTab.startDate = fromTab.startDate
+  toTab.aiGenerated = fromTab.aiGenerated
+  toTab.isDraft = fromTab.isDraft
+  toTab.isOriginal = fromTab.isOriginal
+  toTab.dryRun = fromTab.dryRun
+  toTab.productLink = fromTab.productLink
+  toTab.productTitle = fromTab.productTitle
+  toTab.bilibiliCreationStatement = fromTab.bilibiliCreationStatement
+  toTab.contentType = fromTab.contentType || 'video'
+  toTab.workStatement = fromTab.workStatement
+}
+
+/**
+ * 同一发布页选了多个视频时：按视频数拆成多个发布页，
+ * 平台与配置沿用当前页，每个页 1 个视频 + 1 个同平台账号。
+ */
+const expandVideosToTabs = (sourceTab) => {
+  if (!sourceTab || isArticleTab(sourceTab)) return 0
+  const files = [...(sourceTab.fileList || [])]
+  if (files.length === 0) return 0
+
+  const preferredAccountIds = [...(sourceTab.selectedAccounts || [])]
+  const platformAccountIds = getAccountIdsForPlatform(sourceTab.selectedPlatform)
+
+  if (files.length === 1) {
+    if (!sourceTab.selectedAccounts?.length) {
+      const id = pickAccountIdForIndex(sourceTab.selectedPlatform, preferredAccountIds, 0)
+      sourceTab.selectedAccounts = id != null ? [id] : []
+    }
+    syncDisplayFileList(sourceTab)
+    return 0
+  }
+
+  sourceTab.fileList = [files[0]]
+  syncDisplayFileList(sourceTab)
+  {
+    const id = pickAccountIdForIndex(sourceTab.selectedPlatform, preferredAccountIds, 0)
+    sourceTab.selectedAccounts = id != null ? [id] : []
+  }
+
+  const sourceIndex = tabs.findIndex((t) => t.name === sourceTab.name)
+  const insertBase = sourceIndex >= 0 ? sourceIndex : tabs.length - 1
+  const sourceHadTopics = (sourceTab.selectedTopics || []).length > 0
+  const topicCount = getTopicCountForPlatform(sourceTab.selectedPlatform)
+
+  for (let i = 1; i < files.length; i++) {
+    tabCounter++
+    const newTab = makeNewTab()
+    newTab.name = `tab${tabCounter}`
+    newTab.label = `发布${tabCounter}`
+    copyTabPublishSettings(sourceTab, newTab)
+    newTab.fileList = [files[i]]
+    syncDisplayFileList(newTab)
+    const id = pickAccountIdForIndex(sourceTab.selectedPlatform, preferredAccountIds, i)
+    newTab.selectedAccounts = id != null ? [id] : []
+    // 源页已有话题时，新页各自重新随机，避免和发布1完全一样
+    if (sourceHadTopics) {
+      newTab.selectedTopics = sampleTopics(recommendedTopics, topicCount)
+    }
+    tabs.splice(insertBase + i, 0, newTab)
+  }
+
+  const platformName = PLATFORM_TYPE_NAME[sourceTab.selectedPlatform] || '当前平台'
+  if (!platformAccountIds.length) {
+    ElMessage.warning(`已按 ${files.length} 个视频拆成 ${files.length} 个发布页，但${platformName}暂无账号，请手动选择`)
+  } else if (platformAccountIds.length < files.length) {
+    ElMessage.warning(
+      `已按 ${files.length} 个视频拆成 ${files.length} 个${platformName}发布页；账号仅 ${platformAccountIds.length} 个，已循环分配`
+    )
+  } else {
+    ElMessage.success(`已按 ${files.length} 个视频拆成 ${files.length} 个${platformName}发布页，并自动分配账号`)
+  }
+  return files.length - 1
+}
+
+const expandVideosTimers = new Map()
+const scheduleExpandVideosToTabs = (tab) => {
+  if (!tab?.name) return
+  const prev = expandVideosTimers.get(tab.name)
+  if (prev) clearTimeout(prev)
+  const timer = setTimeout(() => {
+    expandVideosTimers.delete(tab.name)
+    expandVideosToTabs(tab)
+  }, 450)
+  expandVideosTimers.set(tab.name, timer)
 }
 
 // tab页数据 - 默认只有一个tab (use deep copy to avoid shared refs)
@@ -910,9 +1124,6 @@ const tabs = reactive([
 const accountDialogVisible = ref(false)
 const tempSelectedAccounts = ref([])
 const currentTab = ref(null)
-
-// 获取账号状态管理
-const accountStore = useAccountStore()
 
 // 页面加载时获取账号列表
 onMounted(async () => {
@@ -930,17 +1141,7 @@ onMounted(async () => {
 
 // 根据选择的平台获取可用账号列表
 const availableAccounts = computed(() => {
-  const platformMap = {
-    3: '抖音',
-    2: '视频号',
-    1: '小红书',
-    4: '快手',
-    5: '百家号',
-    6: 'B站',
-    7: '今日头条',
-    8: '搜狐',
-    9: '知乎'
-  }
+  const platformMap = PLATFORM_TYPE_NAME
   const currentPlatform = currentTab.value ? platformMap[currentTab.value.selectedPlatform] : null
   return currentPlatform ? accountStore.accounts.filter(acc => acc.platform === currentPlatform) : []
 })
@@ -1034,6 +1235,11 @@ const addTab = () => {
 
 // 删除tab
 const removeTab = (tabName) => {
+  const timer = expandVideosTimers.get(tabName)
+  if (timer) {
+    clearTimeout(timer)
+    expandVideosTimers.delete(tabName)
+  }
   const index = tabs.findIndex(tab => tab.name === tabName)
   if (index > -1) {
     tabs.splice(index, 1)
@@ -1063,13 +1269,9 @@ const handleUploadSuccess = (response, file, tab) => {
 
     // 添加到文件列表
     tab.fileList.push(fileInfo)
-
-    // 更新显示列表
-    tab.displayFileList = [...tab.fileList.map(item => ({
-      name: item.name,
-      url: item.url
-    }))]
-
+    syncDisplayFileList(tab)
+    // 多文件上传时稍等齐再拆页，避免每传一个就弹一次提示
+    scheduleExpandVideosToTabs(tab)
     ElMessage.success('文件上传成功')
   } else {
     ElMessage.error(response.msg || '上传失败')
@@ -1217,11 +1419,41 @@ const removeFile = (tab, index) => {
 }
 
 // 话题相关方法
-// 按当前平台数量，从话题池随机抽取并覆盖已选话题
+/** 把当前页话题原样同步到同平台的其他发布页（手动选话题时用） */
+const syncTopicsToSamePlatformTabs = (sourceTab) => {
+  if (!sourceTab) return 0
+  const topics = [...(sourceTab.selectedTopics || [])]
+  let synced = 0
+  for (const t of tabs) {
+    if (t.name === sourceTab.name) continue
+    if (Number(t.selectedPlatform) !== Number(sourceTab.selectedPlatform)) continue
+    t.selectedTopics = [...topics]
+    synced++
+  }
+  return synced
+}
+
+/** 同平台每个发布页各自随机抽取话题（互不相同） */
+const randomPickTopicsForSamePlatformTabs = (sourceTab) => {
+  if (!sourceTab) return 0
+  let count = 0
+  for (const t of tabs) {
+    if (Number(t.selectedPlatform) !== Number(sourceTab.selectedPlatform)) continue
+    const n = getTopicCountForPlatform(t.selectedPlatform)
+    t.selectedTopics = sampleTopics(recommendedTopics, n)
+    count++
+  }
+  return count
+}
+
+// 按当前平台数量随机抽取；同平台其他 Tab 也各自重新随机，避免多发时话题全一样
 const randomPickTopics = (tab) => {
-  const count = getTopicCountForPlatform(tab.selectedPlatform)
-  tab.selectedTopics = sampleTopics(recommendedTopics, count)
-  ElMessage.success(`已随机抽取 ${tab.selectedTopics.length} 个话题`)
+  const affected = randomPickTopicsForSamePlatformTabs(tab)
+  if (affected > 1) {
+    ElMessage.success(`已为 ${affected} 个发布页分别随机抽取话题（各不相同）`)
+  } else {
+    ElMessage.success(`已随机抽取 ${tab.selectedTopics.length} 个话题`)
+  }
 }
 
 // 打开添加话题弹窗
@@ -1262,11 +1494,19 @@ const removeTopic = (tab, index) => {
   tab.selectedTopics.splice(index, 1)
 }
 
-// 确认添加话题
+// 确认添加话题（手动挑选的话题也同步到同平台其他发布页）
 const confirmTopicSelection = () => {
+  const source = currentTab.value
   topicDialogVisible.value = false
   customTopic.value = ''
   currentTab.value = null
+  if (source) {
+    const synced = syncTopicsToSamePlatformTabs(source)
+    if (synced > 0) {
+      ElMessage.success(`添加话题完成，已同步到另外 ${synced} 个发布页`)
+      return
+    }
+  }
   ElMessage.success('添加话题完成')
 }
 
@@ -1377,6 +1617,11 @@ const confirmPublish = async (tab) => {
     tab.publishing = false
     throw new Error('请选择发布账号')
   }
+  if (tab.scheduleEnabled && !tab.startDate) {
+    ElMessage.error('请选择定时发布起始日期')
+    tab.publishing = false
+    throw new Error('请选择定时发布起始日期')
+  }
 
   // 构造发布数据，符合后端API格式
   const publishData = {
@@ -1391,7 +1636,7 @@ const confirmPublish = async (tab) => {
     enableTimer: tab.scheduleEnabled ? 1 : 0,
     videosPerDay: tab.scheduleEnabled ? tab.videosPerDay || 1 : 1,
     dailyTimes: tab.scheduleEnabled ? tab.dailyTimes || ['10:00'] : ['10:00'],
-    startDays: tab.scheduleEnabled ? tab.startDays || 0 : 0,
+    startDays: tab.scheduleEnabled ? startDateToStartDays(tab.startDate) : 0,
     category: tab.isOriginal ? 1 : 0, // 1表示原创，0表示非原创
     productLink: tab.productLink.trim() || '',
     productTitle: tab.productTitle.trim() || '',
@@ -1429,9 +1674,10 @@ const confirmPublish = async (tab) => {
   }
 
   // 调用后端发布API（使用统一的http封装）
-  // 注意：后端会立刻返回“任务已提交”，真正上传在后台线程执行；
-  // B站走 biliup CLI，不会打开浏览器，进度请看后端终端日志。
+  // 注意：后端会立刻返回“任务已提交”和 jobId；真正上传在后台执行，前端轮询结果。
   try {
+    stopPublishJobPolling(tab)
+    tab.publishJob = null
     const data = await http.post('/postVideo', publishData)
     const isBilibili = tab.selectedPlatform === 6
     const isBaijiahao = tab.selectedPlatform === 5
@@ -1467,6 +1713,38 @@ const confirmPublish = async (tab) => {
       message = data?.msg || '知乎文章发布任务已提交，正在后台执行'
     }
 
+    const jobId = data?.data?.jobId
+    const platformLabel = PLATFORM_TYPES[tab.selectedPlatform] || '未知'
+    const accountNames = (tab.selectedAccounts || []).map((id) => getAccountDisplayName(id)).join('、')
+    const contentLabel = tab.title
+      || (isArticle ? '图文文章' : '')
+      || (tab.fileList || []).map((file) => file.name).filter(Boolean).join('、')
+      || '未命名内容'
+
+    if (jobId) {
+      message = `${message}（可在下方查看每个视频的成败）`
+      tab.publishJob = {
+        jobId,
+        status: 'running',
+        totalCount: 0,
+        successCount: 0,
+        failedCount: 0,
+        results: []
+      }
+      startPublishJobPolling(tab, jobId)
+    } else {
+      // 无 jobId 时直接记一条本地发布记录
+      publishLog.addRecord({
+        platform: platformLabel,
+        account: accountNames,
+        content: contentLabel,
+        status: statusType === 'warning' ? 'submitted' : 'success',
+        message,
+        source: 'auto',
+        dedupeKey: `submit:${tab.selectedPlatform}:${contentLabel}:${accountNames}:${Date.now()}`
+      })
+    }
+
     tab.publishStatus = {
       message,
       type: statusType
@@ -1479,7 +1757,7 @@ const confirmPublish = async (tab) => {
       ElMessage.success({ message, duration: 5000, showClose: true })
     }
 
-    // 清空当前tab的数据（保留 publishStatus 提示）
+    // 清空当前tab的数据（保留 publishStatus / publishJob）
     tab.fileList = []
     tab.displayFileList = []
     tab.title = ''
@@ -1504,11 +1782,137 @@ const confirmPublish = async (tab) => {
       type: 'error'
     }
     ElMessage.error(message)
+    publishLog.addRecord({
+      platform: PLATFORM_TYPES[tab.selectedPlatform] || '未知',
+      account: (tab.selectedAccounts || []).map((id) => getAccountDisplayName(id)).join('、'),
+      content: tab.title || (tab.fileList || []).map((file) => file.name).filter(Boolean).join('、'),
+      status: 'failed',
+      message,
+      source: 'auto'
+    })
     throw error
   } finally {
     tab.publishing = false
   }
 }
+
+const publishJobPollers = new Map()
+
+const stopPublishJobPolling = (tab) => {
+  const key = tab?.name
+  if (!key) return
+  const timer = publishJobPollers.get(key)
+  if (timer) {
+    clearInterval(timer)
+    publishJobPollers.delete(key)
+  }
+}
+
+const resultStatusText = (status) => {
+  const map = {
+    pending: '等待中',
+    success: '成功',
+    failed: '失败',
+    skipped: '已跳过'
+  }
+  return map[status] || status || '-'
+}
+
+const resultStatusTagType = (status) => {
+  const map = {
+    pending: 'info',
+    success: 'success',
+    failed: 'danger',
+    skipped: 'warning'
+  }
+  return map[status] || 'info'
+}
+
+const publishJobStatusText = (job) => {
+  if (!job) return ''
+  const results = job.results || []
+  const total = job.totalCount || results.length
+  const done = results.filter((r) => r.status && r.status !== 'pending').length
+  const successCount = results.filter((r) => r.status === 'success' || r.status === 'skipped').length
+  const failedCount = results.filter((r) => r.status === 'failed').length
+  if (job.status === 'running') {
+    return `进行中 ${done}/${total || '?'}`
+  }
+  if (job.status === 'success') return `全部成功 ${successCount || job.successCount || 0}/${total}`
+  if (job.status === 'failed') return `全部失败 ${failedCount || job.failedCount || 0}/${total}`
+  if (job.status === 'partial') {
+    return `部分成功 成功${successCount || job.successCount || 0} / 失败${failedCount || job.failedCount || 0}`
+  }
+  return job.status
+}
+
+const publishJobTagType = (status) => {
+  const map = {
+    running: 'warning',
+    success: 'success',
+    failed: 'danger',
+    partial: 'warning'
+  }
+  return map[status] || 'info'
+}
+
+const applyPublishJobToTab = (tab, job) => {
+  tab.publishJob = job
+  if (!job || job.status === 'running') return
+  const platformLabel = PLATFORM_TYPES[job.platform] || PLATFORM_TYPES[tab.selectedPlatform] || '未知'
+  const added = publishLog.addJobResults(job, platformLabel)
+  const total = job.totalCount || (job.results || []).length
+  if (job.status === 'success') {
+    tab.publishStatus = {
+      message: `发布完成：全部成功（${job.successCount || 0}/${total}）`,
+      type: 'success'
+    }
+  } else if (job.status === 'failed') {
+    tab.publishStatus = {
+      message: `发布完成：全部失败（${job.failedCount || 0}/${total}），请查看下方明细`,
+      type: 'error'
+    }
+  } else if (job.status === 'partial') {
+    tab.publishStatus = {
+      message: `发布完成：部分成功（成功 ${job.successCount || 0}，失败 ${job.failedCount || 0}），请查看下方明细`,
+      type: 'warning'
+    }
+  }
+  if (added > 0) {
+    ElMessage.info(`已写入 ${added} 条本地发布记录`)
+  }
+}
+
+const startPublishJobPolling = (tab, jobId) => {
+  stopPublishJobPolling(tab)
+  const pollOnce = async () => {
+    try {
+      const resp = await http.get(`/publishJob/${jobId}`)
+      const job = resp?.data
+      if (!job) return
+      applyPublishJobToTab(tab, job)
+      if (job.status && job.status !== 'running') {
+        stopPublishJobPolling(tab)
+      }
+    } catch (err) {
+      console.error('轮询发布结果失败:', err)
+    }
+  }
+  pollOnce()
+  const timer = setInterval(pollOnce, 2000)
+  publishJobPollers.set(tab.name, timer)
+}
+
+onUnmounted(() => {
+  for (const timer of publishJobPollers.values()) {
+    clearInterval(timer)
+  }
+  publishJobPollers.clear()
+  for (const timer of expandVideosTimers.values()) {
+    clearTimeout(timer)
+  }
+  expandVideosTimers.clear()
+})
 
 // 显示上传选项
 const showUploadOptions = (tab) => {
@@ -1575,11 +1979,16 @@ const confirmMaterialSelection = () => {
       }
     })
     
-    // 更新显示列表
-    currentUploadTab.value.displayFileList = [...currentUploadTab.value.fileList.map(item => ({
-      name: item.name,
-      url: item.url
-    }))]
+    syncDisplayFileList(currentUploadTab.value)
+    const splitCount = expandVideosToTabs(currentUploadTab.value)
+    const addedCount = selectedMaterials.value.length
+    materialLibraryVisible.value = false
+    selectedMaterials.value = []
+    currentUploadTab.value = null
+    if (splitCount === 0) {
+      ElMessage.success(`已添加 ${addedCount} 个素材`)
+    }
+    return
   }
   
   const addedCount = selectedMaterials.value.length
@@ -1680,6 +2089,31 @@ const batchPublish = async () => {
   display: flex;
   flex-direction: column;
   height: 100%;
+
+  .publish-status {
+    margin-bottom: 16px;
+  }
+
+  .publish-job-panel {
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    background: #fafafa;
+    border: 1px solid #ebeef5;
+    border-radius: 4px;
+
+    .publish-job-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+
+      h3 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 600;
+      }
+    }
+  }
   
   // Tab管理区域
   .tab-management {
@@ -2074,6 +2508,7 @@ const batchPublish = async () => {
             .schedule-item {
               display: flex;
               align-items: center;
+              flex-wrap: wrap;
               margin-bottom: 15px;
 
               &:last-child {
@@ -2083,6 +2518,12 @@ const batchPublish = async () => {
               .label {
                 min-width: 120px;
                 margin-right: 10px;
+              }
+
+              .schedule-hint {
+                margin-left: 10px;
+                color: #909399;
+                font-size: 12px;
               }
 
               .el-time-select {

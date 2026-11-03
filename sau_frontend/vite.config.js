@@ -18,15 +18,19 @@ export default defineConfig({
     }
   },
   server: {
+    host: '127.0.0.1',
     port: 5173,
     open: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:5409',
+        target: 'http://127.0.0.1:5409',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '')
       }
     }
+  },
+  preview: {
+    host: '127.0.0.1',
   },
   build: {
     outDir: 'dist',

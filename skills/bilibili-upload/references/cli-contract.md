@@ -60,7 +60,7 @@ sau bilibili upload-video \
 
 ## 额外说明
 
-- `--tid` 第一版必须传
+- `--tid` 必须传
 - `--tags` 使用逗号分隔
 - `--schedule` 走 `sau` 统一时间格式
 - 程序会自动准备和更新 `biliup`

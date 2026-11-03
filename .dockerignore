@@ -5,4 +5,13 @@ cookies
 conf.py
 sau_frontend/dist
 sau_frontend/node_modules
-sau_frontend/package-lock.json
+.uv-cache
+__pycache__
+*.egg-info
+logs
+cookiesFile
+videoFile
+uploadFile
+transfer
+db/*.db
+scripts_dev

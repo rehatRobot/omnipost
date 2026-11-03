@@ -31,6 +31,7 @@ SKIP_DIR_NAMES = {
     "cookiesFile",
     "uploadFile",
     "videoFile",
+    "transfer",
     "logs",
     "dist",
     "build",
@@ -44,7 +45,6 @@ SKIP_FILE_NAMES = {
     "conf.py",
     "database.db",
     "qrcode.png",
-    "package-lock.json",
     ".DS_Store",
     "Thumbs.db",
     ".env",
@@ -60,6 +60,20 @@ SKIP_SUFFIXES = {
     ".zip",
     ".7z",
     ".rar",
+}
+
+# Unreferenced legacy screenshots / QR assets are not part of the source release.
+SKIP_RELATIVE_PATHS = {
+    "media/20231009111131.png",
+    "media/20231009111214.png",
+    "media/edan-qrcode.png",
+    "media/get_bili_cookie.png",
+    "media/group-qr.png",
+    "media/tk_login.png",
+    "media/xhs_error_cookie.png",
+    "static/chilltion.png",
+    "static/clawpower.png",
+    "static/wechat.png",
 }
 
 # Local debug / personal artifacts
@@ -78,6 +92,7 @@ SKIP_PATH_REGEX = re.compile(
     r"cookiesFile([/\\]|$)|"
     r"uploadFile([/\\]|$)|"
     r"videoFile([/\\]|$)|"
+    r"transfer([/\\]|$)|"
     r"logs([/\\]|$)|"
     r"\.worktrees([/\\]|$)|"
     r"\.uv-cache([/\\]|$)|"
@@ -102,6 +117,8 @@ SECRET_SCAN = re.compile(
 
 def should_skip(path: Path) -> bool:
     rel = path.relative_to(ROOT).as_posix()
+    if rel in SKIP_RELATIVE_PATHS:
+        return True
     if SKIP_PATH_REGEX.search(rel.replace("\\", "/")):
         return True
     parts = path.relative_to(ROOT).parts
@@ -184,6 +201,7 @@ def main() -> None:
                     "/.venv/",
                     "/node_modules/",
                     "/logs/",
+                    "/transfer/",
                     "/.uv-cache/",
                     "/.learnings/",
                     "/scripts_dev/",

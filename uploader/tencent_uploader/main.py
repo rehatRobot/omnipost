@@ -782,6 +782,7 @@ class TencentBaseUploader(BaseVideoUploader):
                 await asyncio.sleep(0.5)
         else:
             tencent_logger.error(_msg("❌", f"发布超时：{max_publish_retries}次尝试后仍未成功"))
+            raise RuntimeError(f"发布超时：{max_publish_retries}次尝试后仍未成功")
 
 
 class TencentVideo(TencentBaseUploader):

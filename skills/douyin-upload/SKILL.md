@@ -11,6 +11,8 @@ description: 当 agent 需要通过已安装的 `sau` CLI 完成抖音登录、c
 不要一开始就去读 `uploader/`。
 只有在命令不可用或 CLI 执行失败时，才回退到故障排查说明。
 
+这里描述代码提供的 CLI 功能，不表示当前版本已完成真实账号发布验证。运行前提和命令调用方式见 `references/runtime-requirements.md`。
+
 ## 功能概览
 
 | 功能 | 命令入口 | 说明 |

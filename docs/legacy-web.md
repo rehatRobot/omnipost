@@ -1,49 +1,34 @@
-# 历史 Web 版本说明
+# Web 管理台说明
 
-这套 Web 相关代码主要包括：
+Web 是 OmniPost 当前维护和推荐使用的本地可视化入口。此文件保留原有 `legacy-web.md` 路径以兼容已有链接，文件名不代表 Web 已弃用。
 
-- `sau_backend.py`
-- `sau_backend/`
-- `sau_frontend/`
+安装和启动见 [README](../README.md#安装)，排障见 [安装说明](./install.md)，实测结果见 [项目状态](./status.md)。
 
-它们属于项目过去阶段的实现，当前已经不是主线维护方向。
+## 当前入口覆盖
 
-## 当前定位
+Web 后端通过 `sau_backend.py` 和 `myUtils/` 调用 uploader，前端位于 `sau_frontend/`。
 
-- 作为历史版本保留
-- 作为过去 API / Web 封装思路的参考
-- 不承诺当前一定可直接运行
-- 不承诺和当前 `uploader/`、`sau_cli.py` 的最新实现完全同步
+| 平台 | Web 发布入口 | CLI |
+| --- | --- | --- |
+| 小红书 | 视频 | `xiaohongshu`，另提供图文命令 |
+| 视频号 | 视频 | `tencent` |
+| 抖音 | 视频 | `douyin`，另提供图文命令 |
+| 快手 | 视频 | `kuaishou`，另提供图文命令 |
+| 百家号 | 视频、文章 | 尚无统一 CLI |
+| Bilibili | 视频，通过 biliup | `bilibili` |
+| 今日头条 | 视频、文章 | 尚无统一 CLI |
+| 搜狐号 | 文章 | 尚无统一 CLI |
+| 知乎 | 文章 | 尚无统一 CLI |
+| TikTok | 尚无 Web 发布入口 | 使用 examples / uploader |
 
-## 为什么单独拆出来说明
+表格反映代码接线范围，不代表已完成真实账号发布验证。CLI 列仅记录保留实现，未随本次 Web 更新同步维护，不作为推荐入口。抖音、快手和小红书的 CLI 图文能力不能等同于 Web 文章入口。
 
-当前工程正在整体重构，主线已经切到：
+## 管理能力与限制
 
-- `uploader/`：核心平台实现
-- `sau_cli.py`：CLI 主入口
-- `skills/`：面向 agent 的 skill
+- 账号：扫码登录、Cookie 导入导出和有效性检查；各平台登录流程不同。
+- 素材：本地上传、列表、预览和删除。
+- 发布：单平台和批量入口；`/postVideo` 返回的 `jobId` 用于查询任务结果，提交成功不代表发布成功。
+- 数据：代码提供抖音、快手、小红书、Bilibili、视频号的内容统计同步入口，需实际账号验证。
+- `dryRun`：浏览器流程会填表但不点击发布，平台可能自动保存草稿；Bilibili 的 Web 预览不会实际上传。
 
-所以 README 不再把 Web 版本当成主入口来介绍，避免让新用户误以为这是当前最稳定的使用方式。
-
-## 如果你仍然想研究这套历史 Web 版本
-
-可以参考这些文件：
-
-- `sau_backend/README.md`
-- `sau_frontend/README.md`
-- `sau_backend.py`
-
-但请预期：
-
-- 接口契约可能与当前主线不一致
-- 平台能力覆盖可能落后于当前 `uploader/`
-- 依赖和运行方式可能需要自行排障
-
-## 当前推荐入口
-
-如果你要使用当前主线能力，优先看：
-
-- `uploader/`
-- `sau_cli.py`
-- `docs/CLI.md`
-- `skills/douyin-upload/SKILL.md`
+服务默认仅本机访问，后端没有完整的身份认证机制。当前推荐使用 Web；CLI 和 examples 仅保留供兼容与开发参考。真实账号未实测的功能不作稳定性承诺。

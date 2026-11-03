@@ -1,8 +1,10 @@
 # 百家号内容类型说明
 
-百家号支持两种主要内容类型：**视频**和**图文文章**。
+项目代码提供百家号**视频**和**图文文章**的 Web / examples 实现，暂无统一 CLI 入口。本文描述代码处理方式；真实账号和平台页面限制尚未实测，见 [项目状态](./status.md)。
 
 ## 内容类型对比
+
+下表记录当前实现采用的处理方式和预期页面，不作为平台现行规则的实测结论。
 
 | 特性 | 视频 (Video) | 图文文章 (Article) |
 |------|-------------|-------------------|
@@ -27,7 +29,7 @@
 
 #### 通过示例脚本
 ```bash
-python examples/upload_video_to_baijiahao.py
+uv run --no-sync python examples/upload_video_to_baijiahao.py
 ```
 
 #### 通过 API
@@ -57,7 +59,7 @@ POST /postVideo
 
 #### 通过示例脚本
 ```bash
-python examples/upload_article_to_baijiahao.py
+uv run --no-sync python examples/upload_article_to_baijiahao.py
 ```
 
 #### 通过 API
@@ -157,7 +159,7 @@ A: 视频上传有 10 分钟超时限制。建议：
 ### Q5: Cookie 失效怎么办？
 A: 运行以下命令重新获取 Cookie：
 ```bash
-python examples/get_baijiahao_cookie.py
+uv run --no-sync python examples/get_baijiahao_cookie.py
 ```
 
 ## 相关文档
@@ -165,9 +167,11 @@ python examples/get_baijiahao_cookie.py
 - [百家号视频上传示例](../examples/upload_video_to_baijiahao.py)
 - [百家号图文文章示例](../examples/upload_article_to_baijiahao.py)
 - [百家号 Cookie 获取](../examples/get_baijiahao_cookie.py)
-- [今日头条内容类型对比](./toutiao-content-types.md)
+- [Web 平台入口覆盖](./legacy-web.md)
 
 ## 验证状态
+
+本节保留该功能开发时的检查记录；当前统一验证结果见 [项目状态](./status.md)。
 
 已验证：
 - Python 侧编译与导入通过

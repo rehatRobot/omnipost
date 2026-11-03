@@ -1047,6 +1047,7 @@ class DouYinVideo(DouYinBaseUploader):
             douyin_logger.error(_msg("❌", f"发布超时：{max_retries}次尝试后仍未成功，请检查抖音页面是否有弹窗或变更"))
             if self.debug:
                 await page.screenshot(full_page=True)
+            raise RuntimeError(f"发布超时：{max_retries}次尝试后仍未成功")
 
         await context.storage_state(path=self.account_file)
         douyin_logger.success(_msg("🥳", "cookie 更新完毕"))

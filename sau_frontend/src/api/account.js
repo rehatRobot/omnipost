@@ -26,5 +26,10 @@ export const accountApi = {
   // 删除账号
   deleteAccount(id) {
     return http.get(`/deleteAccount?id=${id}`)
+  },
+
+  // 打开创作者中心（有头浏览器 + 已保存 cookie）
+  openCreatorCenter(id) {
+    return http.post('/openCreatorCenter', { id })
   }
 }

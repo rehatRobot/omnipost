@@ -14,13 +14,13 @@ sau kuaishou --help
 ```
 
 ```bash
-uv run sau kuaishou --help
+uv run --no-sync sau kuaishou --help
 ```
 
-如果当前环境还没有安装项目：
+如果当前环境还没有安装项目，先按源码 README 创建或保留 `conf.py`，再在源码根目录执行：
 
 ```bash
-uv pip install -e .
+uv sync --locked --python 3.12
 ```
 
 ## cookie 无效或已过期
@@ -55,7 +55,8 @@ sau kuaishou login --account <account>
 
 - `--account`
 - `--file`
-- `--title`
+
+视频 `--title` 可选；填写标题有助于明确发布内容。
 
 ### 图文上传
 

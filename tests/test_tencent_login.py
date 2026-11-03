@@ -41,6 +41,8 @@ class _FakePage:
         self.url = "about:blank"
         self.main_frame = object()
         self.frame = _FakeFrameLocator()
+        self.wait_for_url = AsyncMock()
+        self.wait_for_timeout = AsyncMock()
 
     async def goto(self, url, **kwargs):
         self.url = url
@@ -136,6 +138,10 @@ class TencentLoginTests(unittest.TestCase):
         self.assertFalse(fake_playwright.chromium.launch_options["headless"])
         self.assertEqual(queue.get_nowait(), "https://open.weixin.qq.com/connect/qrcode/qr")
         self.assertEqual(queue.get_nowait(), "200")
+        fake_playwright.chromium.browser.context.page.wait_for_url.assert_awaited_once_with(
+            "**/platform/**", wait_until="commit", timeout=30_000
+        )
+        fake_playwright.chromium.browser.context.page.wait_for_timeout.assert_awaited_once_with(2000)
         conn.cursor.assert_called_once()
 
 

@@ -178,7 +178,6 @@ cookies
 .vite/
 dist/
 node_modules/
-package-lock.json
 
 # database
 db/database.db
@@ -187,6 +186,9 @@ db/database.db
 cookiesFile
 uploadFile
 videoFile
+
+# 账号移交包（含登录凭证，勿提交）
+transfer/
 
 /uploader/bilibili_uploader/qrcode.png
 

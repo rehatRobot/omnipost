@@ -14,13 +14,13 @@ sau xiaohongshu --help
 ```
 
 ```bash
-uv run sau xiaohongshu --help
+uv run --no-sync sau xiaohongshu --help
 ```
 
-如果当前环境还没有安装项目：
+如果当前环境还没有安装项目，先按源码 README 创建或保留 `conf.py`，再在源码根目录执行：
 
 ```bash
-uv pip install -e .
+uv sync --locked --python 3.12
 ```
 
 ## cookie 无效或已过期
@@ -55,7 +55,6 @@ sau xiaohongshu login --account <account>
 
 - `--account`
 - `--file`
-- `--title`
 
 ### 图文上传
 
@@ -63,9 +62,8 @@ sau xiaohongshu login --account <account>
 
 - `--account`
 - `--images`
-- `--title`
 
-`--note` 当前是可选图文正文。
+视频和图文的 `--title` 均可选，但建议显式提供。`--note` 是可选图文正文。
 
 ## 定时发布
 

@@ -6,7 +6,7 @@ RUN npm config set registry https://registry.npmmirror.com
 
 COPY sau_frontend .
 
-RUN npm install
+RUN npm ci
 
 ENV NODE_ENV=production
 ENV PATH=/app/node_modules/.bin:$PATH
@@ -41,22 +41,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends libnss3 \
 
 RUN pip config set global.index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
 
-COPY requirements.txt requirements.txt
-
-RUN pip install -r requirements.txt
-
-RUN playwright install chromium-headless-shell
-
 COPY . .
+
+RUN cp conf.example.py conf.py
+RUN pip install -r requirements.txt
+RUN playwright install --with-deps chromium chrome
 
 COPY --from=builder /app/dist/index.html /app
 COPY --from=builder /app/dist/assets /app/assets
 COPY --from=builder /app/dist/vite.svg /app/assets
 
-RUN cp conf.example.py conf.py
-
-RUN mkdir -p /app/videoFile
-RUN mkdir -p /app/cookiesFile
+RUN python db/createTable.py
 
 EXPOSE 5409
 

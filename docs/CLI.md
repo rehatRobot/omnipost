@@ -1,11 +1,14 @@
 # CLI 使用说明
 
-项目现在提供一个统一的 CLI 入口 `sau`，当前主线已经接入：
+> 当前推荐使用 Web 管理台。本文件说明保留的兼容入口，其功能未随本次 Web 更新同步维护；使用前需核对实际代码，不应将参数或帮助检查通过视为平台流程可用。
+
+OmniPost 提供统一 CLI 入口 `sau`，当前已接入：
 
 - `douyin`
 - `kuaishou`
 - `xiaohongshu`
 - `bilibili`
+- `tencent`（视频号）
 
 实现说明：
 
@@ -19,63 +22,53 @@
 
 ## 安装 CLI 入口
 
-如果你希望直接使用 `sau` 命令，而不是手动执行 `python sau_cli.py`，先在项目根目录安装一次：
+首次安装按 [README](../README.md#安装) 复制配置、安装依赖和准备浏览器。仅使用 CLI 时，依赖命令为：
 
 ```bash
-uv pip install -e .
+uv sync --locked --python 3.12
+uv run --no-sync sau --help
 ```
 
-安装后就可以直接使用：
+下文命令在源码根目录执行，无需激活环境。已激活 `.venv` 或 `sau` 已在 PATH 中时，可以简写为 `sau ...`。素材路径、账号名和定时时间均需替换；命令参数以实际 `--help` 为准。入口覆盖与已验证范围见 [项目状态](./status.md)。
 
-```bash
-sau douyin --help
-sau kuaishou --help
-sau xiaohongshu --help
-sau bilibili --help
-```
+## 浏览器要求
 
-## 安装 patchright 浏览器
-
-Windows 下推荐先指定镜像，再安装 Chromium：
-
-```powershell
-$env:PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright"; patchright install chromium
-```
+主要浏览器上传模块使用系统 Google Chrome 稳定版。安装 `patchright` 的 Chromium 不能替代 Chrome。Web 的部分账号校验和旧示例还需要 `uv run --no-sync playwright install chromium`，详见 README。
 
 ## 抖音 CLI 子命令
 
 ```bash
-sau douyin login --account <account_name>
-sau douyin login --account <account_name> --headless
-sau douyin check --account <account_name>
-sau douyin upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介" --tags 运动,训练
-sau douyin upload-note --account <account_name> --images videos/1.png videos/2.png --title "图文标题" --note "图文示例" --tags 图文,测试
+uv run --no-sync sau douyin login --account <account_name>
+uv run --no-sync sau douyin login --account <account_name> --headless
+uv run --no-sync sau douyin check --account <account_name>
+uv run --no-sync sau douyin upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介" --tags 运动,训练
+uv run --no-sync sau douyin upload-note --account <account_name> --images videos/1.png videos/2.png --title "图文标题" --note "图文示例" --tags 图文,测试
 ```
 
 ## 快手 CLI 子命令
 
 ```bash
-sau kuaishou login --account <account_name>
-sau kuaishou check --account <account_name>
-sau kuaishou upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介" --tags 运动,训练
-sau kuaishou upload-note --account <account_name> --images videos/1.png videos/2.png videos/3.png --title "图文标题" --note "图文示例" --tags 图文,测试
+uv run --no-sync sau kuaishou login --account <account_name>
+uv run --no-sync sau kuaishou check --account <account_name>
+uv run --no-sync sau kuaishou upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介" --tags 运动,训练
+uv run --no-sync sau kuaishou upload-note --account <account_name> --images videos/1.png videos/2.png videos/3.png --title "图文标题" --note "图文示例" --tags 图文,测试
 ```
 
 ## 小红书 CLI 子命令
 
 ```bash
-sau xiaohongshu login --account <account_name>
-sau xiaohongshu check --account <account_name>
-sau xiaohongshu upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介" --tags 小红书,视频
-sau xiaohongshu upload-note --account <account_name> --images videos/1.png videos/2.png videos/3.png --title "图文标题" --note "图文示例" --tags 图文,测试
+uv run --no-sync sau xiaohongshu login --account <account_name>
+uv run --no-sync sau xiaohongshu check --account <account_name>
+uv run --no-sync sau xiaohongshu upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介" --tags 小红书,视频
+uv run --no-sync sau xiaohongshu upload-note --account <account_name> --images videos/1.png videos/2.png videos/3.png --title "图文标题" --note "图文示例" --tags 图文,测试
 ```
 
 ## Bilibili CLI 子命令
 
 ```bash
-sau bilibili login --account <account_name>
-sau bilibili check --account <account_name>
-sau bilibili upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介" --tid 249 --tags 足球,测试
+uv run --no-sync sau bilibili login --account <account_name>
+uv run --no-sync sau bilibili check --account <account_name>
+uv run --no-sync sau bilibili upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介" --tid 249 --tags 足球,测试
 ```
 
 补充说明：
@@ -90,6 +83,17 @@ sau bilibili upload-video --account <account_name> --file videos/demo.mp4 --titl
 - 如果上游 GitHub Release 有更新，运行时会先自动更新
 - `sau bilibili login --account <name>` 建议由用户自己在本地真实终端里执行；如果终端里的二维码显示不完整，可直接打开当前目录下的 `qrcode.png` 扫码
 
+## 视频号 CLI 子命令
+
+```bash
+uv run --no-sync sau tencent login --account <account_name>
+uv run --no-sync sau tencent check --account <account_name>
+uv run --no-sync sau tencent upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介"
+uv run --no-sync sau tencent upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --draft
+```
+
+视频号提供 `login`、`check` 和 `upload-video`，没有 `upload-note`。视频可选 `--short-title`、`--category`、`--thumbnail`、`--schedule`；`--draft` 表示保存草稿。视频号暂无独立 Skill。
+
 ## 登录二维码说明
 
 - 抖音、快手、小红书登录过程中，CLI / uploader 可能会生成临时二维码图片
@@ -100,16 +104,18 @@ sau bilibili upload-video --account <account_name> --file videos/demo.mp4 --titl
 
 ## 定时发布
 
-抖音、快手、小红书的图文和视频上传，以及 Bilibili 的视频上传都支持 `--schedule`。只要传了 `--schedule`，CLI 就会自动切换到对应平台的定时发布策略；不传则默认立即发布。
+示例中的 `YYYY-MM-DD HH:MM` 必须替换为符合平台限制的未来本地时间。不要直接执行占位时间。
+
+抖音、快手、小红书的图文和视频上传，以及 Bilibili、视频号的视频上传都支持 `--schedule`。只要传了 `--schedule`，CLI 就会自动切换到对应平台的定时发布策略；不传则默认立即发布。
 
 ```bash
-sau douyin upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介" --schedule "2026-03-24 21:30"
-sau douyin upload-note --account <account_name> --images videos/1.png videos/2.png --title "图文标题" --note "图文示例" --schedule "2026-03-24 21:30"
-sau kuaishou upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介" --schedule "2026-03-24 21:30"
-sau kuaishou upload-note --account <account_name> --images videos/1.png videos/2.png videos/3.png --title "图文标题" --note "图文示例" --schedule "2026-03-24 21:30"
-sau xiaohongshu upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介" --schedule "2026-03-24 21:30"
-sau xiaohongshu upload-note --account <account_name> --images videos/1.png videos/2.png videos/3.png --title "图文标题" --note "图文示例" --schedule "2026-03-24 21:30"
-sau bilibili upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介" --tid 249 --schedule "2026-03-24 21:30"
+uv run --no-sync sau douyin upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介" --schedule "YYYY-MM-DD HH:MM"
+uv run --no-sync sau douyin upload-note --account <account_name> --images videos/1.png videos/2.png --title "图文标题" --note "图文示例" --schedule "YYYY-MM-DD HH:MM"
+uv run --no-sync sau kuaishou upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介" --schedule "YYYY-MM-DD HH:MM"
+uv run --no-sync sau kuaishou upload-note --account <account_name> --images videos/1.png videos/2.png videos/3.png --title "图文标题" --note "图文示例" --schedule "YYYY-MM-DD HH:MM"
+uv run --no-sync sau xiaohongshu upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介" --schedule "YYYY-MM-DD HH:MM"
+uv run --no-sync sau xiaohongshu upload-note --account <account_name> --images videos/1.png videos/2.png videos/3.png --title "图文标题" --note "图文示例" --schedule "YYYY-MM-DD HH:MM"
+uv run --no-sync sau bilibili upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介" --tid 249 --schedule "YYYY-MM-DD HH:MM"
 ```
 
 ## 运行时参数
@@ -126,7 +132,7 @@ CLI 将 `debug` 和 `headless` 拆成了两个独立维度：
 - `--headless`: 无头模式运行
 - `--headed`: 有头模式运行
 
-如果都不传，CLI 当前默认按 `headless=True` 运行。
+浏览器平台（抖音、快手、小红书、视频号）不传时默认按 `headless=True` 运行。Bilibili 通过 biliup 执行，不提供这些浏览器参数。
 
 补充：
 
@@ -134,6 +140,8 @@ CLI 将 `debug` 和 `headless` 拆成了两个独立维度：
 - 如果用户明确要求可见浏览器窗口，或确实需要人工看页面，再显式传 `--headed`
 
 ## 视频上传参数
+
+各平台参数并不完全相同：下列 `--thumbnail` 用于浏览器平台，Bilibili 没有该参数；具体必填项以对应命令的 `--help` 为准。
 
 ```bash
 --file videos/demo.mp4
@@ -156,7 +164,7 @@ Bilibili 额外要求：
 --tid 249
 ```
 
-- `--tid` 第一版是必填
+- `--tid` 和 `--desc` 均必填
 - `--tags` 会映射到 `biliup upload --tag`
 - `--schedule` 会映射到 Bilibili 所需的时间戳参数
 

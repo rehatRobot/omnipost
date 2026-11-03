@@ -14,13 +14,13 @@ sau douyin --help
 ```
 
 ```bash
-uv run sau douyin --help
+uv run --no-sync sau douyin --help
 ```
 
-如果当前环境还没有安装项目：
+如果当前环境还没有安装项目，先按源码 README 创建或保留 `conf.py`，再在源码根目录执行：
 
 ```bash
-uv pip install -e .
+uv sync --locked --python 3.12
 ```
 
 ## cookie 无效或已过期

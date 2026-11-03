@@ -1,67 +1,22 @@
 # 运行前提
 
-这个 skill 默认假设当前环境已经具备：
+此 Skill 操作 OmniPost 的 `douyin` CLI。项目名称为 OmniPost，Python 包名仍为 `social-auto-upload`，CLI 命令为 `sau`。
 
-- 已安装 `social-auto-upload`
-- 可以调用 `sau` 命令，或至少有等效调用方式
-- 已为 `patchright` 安装 Chromium
+## 源码环境
 
-## 推荐安装方式
-
-在项目根目录执行：
+在 OmniPost 源码根目录按 README 复制 `conf.example.py` 为 `conf.py`（保留已有配置），再执行：
 
 ```bash
-uv pip install -e .
+uv sync --locked --python 3.12
+uv run --no-sync sau douyin --help
 ```
 
-## 安装 patchright 浏览器
+Python 支持 3.10–3.12，推荐 3.12。Web 管理台另需 `--extra web` 和前端安装，完整步骤以源码 README 为准。单独复制 Skill 不会安装项目或运行依赖。
 
-Windows PowerShell：
+本 Skill 的命令契约中使用 `sau ...` 简写。可在已激活 `.venv` 或 `sau` 已在 PATH 的环境直接调用；在源码根目录、未激活环境时使用 `uv run --no-sync sau ...`。从仓库外调用前，先进入正确的源码目录或定位已安装的可执行文件。
 
-```powershell
-$env:PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright"; patchright install chromium
-```
+## 浏览器
 
-Linux / macOS（bash / zsh）：
+主要上传流程使用系统 Google Chrome 稳定版。仅安装 patchright Chromium 不能替代 `channel="chrome"` 使用的系统 Chrome。Web 的部分账号校验和旧示例另外使用 Playwright Chromium，按源码 README 准备。
 
-```bash
-PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright" patchright install chromium
-```
-
-## 常见调用方式
-
-### 如果 `sau` 已经在 PATH 中
-
-```bash
-sau douyin --help
-```
-
-### 如果虚拟环境存在，但还没有激活
-
-PowerShell：
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-sau douyin --help
-```
-
-### 如果你想直接调用可执行文件
-
-PowerShell：
-
-```powershell
-.\.venv\Scripts\sau.exe douyin --help
-```
-
-### 如果你更倾向于使用 uv
-
-```bash
-uv run sau douyin --help
-```
-
-## 无头和有头模式
-
-- 使用 `--headless` 表示无头模式
-- 使用 `--headed` 表示有头模式
-- 如果用户明确要求无头登录，也要预期 CLI 会通过控制台输出或临时图片路径提供二维码相关提示
-- 如果登录过程中已经生成了本地二维码图片，agent 应优先直接把图片展示/发送给用户扫码，不要只告诉用户图片路径
+CLI 默认无头运行，`--headed` 可打开可见窗口，`--headless` 明确指定无头模式。登录若生成二维码图片，可展示该图片给用户扫码。

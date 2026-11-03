@@ -21,18 +21,21 @@ from uploader.zhihu_uploader.main import ZhiHuArticle
 from uploader.xiaohongshu_uploader.main import XiaoHongShuVideo
 from utils.constant import TencentZoneTypes
 from utils.files_times import generate_schedule_time_next_day
+from myUtils.publish_job import run_tracked_upload
 
 
-def post_video_tencent(title,files,tags,account_file,category=TencentZoneTypes.LIFESTYLE.value,enableTimer=False,videos_per_day = 1, daily_times=None,start_days = 0, is_draft=False, dry_run=False, ai_generated=False):
-    # 生成文件的完整路径
-    account_file = [Path(BASE_DIR / "cookiesFile" / file) for file in account_file]
-    files = [Path(BASE_DIR / "videoFile" / file) for file in files]
+def post_video_tencent(title,files,tags,account_file,category=TencentZoneTypes.LIFESTYLE.value,enableTimer=False,videos_per_day = 1, daily_times=None,start_days = 0, is_draft=False, dry_run=False, ai_generated=False, job_id=None):
+    # 生成文件的完整路径（保留原始相对名供任务结果回写）
+    file_names = [str(f) for f in files]
+    account_names = [str(a) for a in account_file]
+    account_paths = [Path(BASE_DIR / "cookiesFile" / file) for file in account_names]
+    file_paths = [Path(BASE_DIR / "videoFile" / file) for file in file_names]
     if enableTimer:
-        publish_datetimes = generate_schedule_time_next_day(len(files), videos_per_day, daily_times,start_days)
+        publish_datetimes = generate_schedule_time_next_day(len(file_paths), videos_per_day, daily_times,start_days)
     else:
-        publish_datetimes = [0 for i in range(len(files))]
-    for index, file in enumerate(files):
-        for cookie in account_file:
+        publish_datetimes = [0 for i in range(len(file_paths))]
+    for index, file in enumerate(file_paths):
+        for cookie_idx, cookie in enumerate(account_paths):
             print(f"文件路径{str(file)}")
             print(f"视频文件名：{file}")
             print(f"标题：{title}")
@@ -57,24 +60,30 @@ def post_video_tencent(title,files,tags,account_file,category=TencentZoneTypes.L
             )
             if dry_run:
                 kwargs["headless"] = False
-            app = TencentVideo(**kwargs)
-            asyncio.run(app.main(), debug=False)
+
+            def _do_upload(kw=kwargs):
+                app = TencentVideo(**kw)
+                asyncio.run(app.main(), debug=False)
+
+            run_tracked_upload(job_id, file_names[index], account_names[cookie_idx], _do_upload)
 
 
 def post_video_DouYin(title,files,tags,account_file,category=TencentZoneTypes.LIFESTYLE.value,enableTimer=False,videos_per_day = 1, daily_times=None,start_days = 0,
                       thumbnail_path = '',
                       productLink = '', productTitle = '',
                       ai_generated = False,
-                      dry_run = False):
-    # 生成文件的完整路径
-    account_file = [Path(BASE_DIR / "cookiesFile" / file) for file in account_file]
-    files = [Path(BASE_DIR / "videoFile" / file) for file in files]
+                      dry_run = False,
+                      job_id=None):
+    file_names = [str(f) for f in files]
+    account_names = [str(a) for a in account_file]
+    account_paths = [Path(BASE_DIR / "cookiesFile" / file) for file in account_names]
+    file_paths = [Path(BASE_DIR / "videoFile" / file) for file in file_names]
     if enableTimer:
-        publish_datetimes = generate_schedule_time_next_day(len(files), videos_per_day, daily_times,start_days)
+        publish_datetimes = generate_schedule_time_next_day(len(file_paths), videos_per_day, daily_times,start_days)
     else:
-        publish_datetimes = [0 for i in range(len(files))]
-    for index, file in enumerate(files):
-        for cookie in account_file:
+        publish_datetimes = [0 for i in range(len(file_paths))]
+    for index, file in enumerate(file_paths):
+        for cookie_idx, cookie in enumerate(account_paths):
             print(f"文件路径{str(file)}")
             print(f"视频文件名：{file}")
             print(f"标题：{title}")
@@ -100,20 +109,25 @@ def post_video_DouYin(title,files,tags,account_file,category=TencentZoneTypes.LI
             )
             if dry_run:
                 kwargs["headless"] = False
-            app = DouYinVideo(**kwargs)
-            asyncio.run(app.douyin_upload_video(), debug=False)
+
+            def _do_upload(kw=kwargs):
+                app = DouYinVideo(**kw)
+                asyncio.run(app.douyin_upload_video(), debug=False)
+
+            run_tracked_upload(job_id, file_names[index], account_names[cookie_idx], _do_upload)
 
 
-def post_video_ks(title,files,tags,account_file,category=TencentZoneTypes.LIFESTYLE.value,enableTimer=False,videos_per_day = 1, daily_times=None,start_days = 0, dry_run=False, ai_generated=False):
-    # 生成文件的完整路径
-    account_file = [Path(BASE_DIR / "cookiesFile" / file) for file in account_file]
-    files = [Path(BASE_DIR / "videoFile" / file) for file in files]
+def post_video_ks(title,files,tags,account_file,category=TencentZoneTypes.LIFESTYLE.value,enableTimer=False,videos_per_day = 1, daily_times=None,start_days = 0, dry_run=False, ai_generated=False, job_id=None):
+    file_names = [str(f) for f in files]
+    account_names = [str(a) for a in account_file]
+    account_paths = [Path(BASE_DIR / "cookiesFile" / file) for file in account_names]
+    file_paths = [Path(BASE_DIR / "videoFile" / file) for file in file_names]
     if enableTimer:
-        publish_datetimes = generate_schedule_time_next_day(len(files), videos_per_day, daily_times,start_days)
+        publish_datetimes = generate_schedule_time_next_day(len(file_paths), videos_per_day, daily_times,start_days)
     else:
-        publish_datetimes = [0 for i in range(len(files))]
-    for index, file in enumerate(files):
-        for cookie in account_file:
+        publish_datetimes = [0 for i in range(len(file_paths))]
+    for index, file in enumerate(file_paths):
+        for cookie_idx, cookie in enumerate(account_paths):
             print(f"文件路径{str(file)}")
             print(f"视频文件名：{file}")
             print(f"标题：{title}")
@@ -131,20 +145,25 @@ def post_video_ks(title,files,tags,account_file,category=TencentZoneTypes.LIFEST
             )
             if dry_run:
                 kwargs["headless"] = False
-            app = KSVideo(**kwargs)
-            asyncio.run(app.main(), debug=False)
 
-def post_video_xhs(title,files,tags,account_file,category=TencentZoneTypes.LIFESTYLE.value,enableTimer=False,videos_per_day = 1, daily_times=None,start_days = 0, dry_run=False, ai_generated=False):
-    # 生成文件的完整路径
-    account_file = [Path(BASE_DIR / "cookiesFile" / file) for file in account_file]
-    files = [Path(BASE_DIR / "videoFile" / file) for file in files]
-    file_num = len(files)
+            def _do_upload(kw=kwargs):
+                app = KSVideo(**kw)
+                asyncio.run(app.main(), debug=False)
+
+            run_tracked_upload(job_id, file_names[index], account_names[cookie_idx], _do_upload)
+
+def post_video_xhs(title,files,tags,account_file,category=TencentZoneTypes.LIFESTYLE.value,enableTimer=False,videos_per_day = 1, daily_times=None,start_days = 0, dry_run=False, ai_generated=False, job_id=None):
+    file_names = [str(f) for f in files]
+    account_names = [str(a) for a in account_file]
+    account_paths = [Path(BASE_DIR / "cookiesFile" / file) for file in account_names]
+    file_paths = [Path(BASE_DIR / "videoFile" / file) for file in file_names]
+    file_num = len(file_paths)
     if enableTimer:
         publish_datetimes = generate_schedule_time_next_day(file_num, videos_per_day, daily_times,start_days)
     else:
         publish_datetimes = 0
-    for index, file in enumerate(files):
-        for cookie in account_file:
+    for index, file in enumerate(file_paths):
+        for cookie_idx, cookie in enumerate(account_paths):
             print(f"视频文件名：{file}")
             print(f"标题：{title}")
             print(f"Hashtag：{tags}")
@@ -161,54 +180,70 @@ def post_video_xhs(title,files,tags,account_file,category=TencentZoneTypes.LIFES
             )
             if dry_run:
                 kwargs["headless"] = False
-            app = XiaoHongShuVideo(**kwargs)
-            asyncio.run(app.main(), debug=False)
+
+            def _do_upload(kw=kwargs):
+                app = XiaoHongShuVideo(**kw)
+                asyncio.run(app.main(), debug=False)
+
+            run_tracked_upload(job_id, file_names[index], account_names[cookie_idx], _do_upload)
 
 
 
-def post_video_baijiahao(title, files, tags, account_file, category=TencentZoneTypes.LIFESTYLE.value, enableTimer=False, videos_per_day=1, daily_times=None, start_days=0, dry_run=False):
-    account_file = [Path(BASE_DIR / "cookiesFile" / file) for file in account_file]
-    files = [Path(BASE_DIR / "videoFile" / file) for file in files]
-    for file in files:
+def post_video_baijiahao(title, files, tags, account_file, category=TencentZoneTypes.LIFESTYLE.value, enableTimer=False, videos_per_day=1, daily_times=None, start_days=0, dry_run=False, job_id=None):
+    file_names = [str(f) for f in files]
+    account_names = [str(a) for a in account_file]
+    account_paths = [Path(BASE_DIR / "cookiesFile" / file) for file in account_names]
+    file_paths = [Path(BASE_DIR / "videoFile" / file) for file in file_names]
+    for file in file_paths:
         if not file.exists():
             raise FileNotFoundError(f"视频文件不存在: {file}")
-    for cookie in account_file:
+    for cookie in account_paths:
         if not cookie.exists():
             raise FileNotFoundError(f"Cookie 文件不存在: {cookie}")
     if enableTimer:
-        publish_datetimes = generate_schedule_time_next_day(len(files), videos_per_day, daily_times, start_days)
+        publish_datetimes = generate_schedule_time_next_day(len(file_paths), videos_per_day, daily_times, start_days)
     else:
-        publish_datetimes = [0 for i in range(len(files))]
-    for index, file in enumerate(files):
-        for cookie in account_file:
+        publish_datetimes = [0 for i in range(len(file_paths))]
+    for index, file in enumerate(file_paths):
+        for cookie_idx, cookie in enumerate(account_paths):
             print(f"🟢 百家号发布开始: 文件={file}, 账号={cookie}, dryRun={dry_run}", flush=True)
             print(f"标题：{title}", flush=True)
             print(f"Hashtag：{tags}", flush=True)
-            app = BaiJiaHaoVideo(title, str(file), tags, publish_datetimes[index], str(cookie), dry_run=dry_run)
-            if dry_run:
-                app.headless = False
-            asyncio.run(app.main(), debug=False)
-            print(f"✅ 百家号发布流程结束: {file}", flush=True)
+
+            def _do_upload(f=file, c=cookie, pdt=publish_datetimes[index]):
+                app = BaiJiaHaoVideo(title, str(f), tags, pdt, str(c), dry_run=dry_run)
+                if dry_run:
+                    app.headless = False
+                asyncio.run(app.main(), debug=False)
+                print(f"✅ 百家号发布流程结束: {f}", flush=True)
+
+            run_tracked_upload(job_id, file_names[index], account_names[cookie_idx], _do_upload)
 
 
-def post_video_toutiao(title, files, tags, account_file, category=TencentZoneTypes.LIFESTYLE.value, enableTimer=False, videos_per_day=1, daily_times=None, start_days=0, dry_run=False):
-    account_file = [Path(BASE_DIR / "cookiesFile" / file) for file in account_file]
-    files = [Path(BASE_DIR / "videoFile" / file) for file in files]
+def post_video_toutiao(title, files, tags, account_file, category=TencentZoneTypes.LIFESTYLE.value, enableTimer=False, videos_per_day=1, daily_times=None, start_days=0, dry_run=False, job_id=None):
+    file_names = [str(f) for f in files]
+    account_names = [str(a) for a in account_file]
+    account_paths = [Path(BASE_DIR / "cookiesFile" / file) for file in account_names]
+    file_paths = [Path(BASE_DIR / "videoFile" / file) for file in file_names]
     if enableTimer:
-        publish_datetimes = generate_schedule_time_next_day(len(files), videos_per_day, daily_times, start_days)
+        publish_datetimes = generate_schedule_time_next_day(len(file_paths), videos_per_day, daily_times, start_days)
     else:
-        publish_datetimes = [0 for i in range(len(files))]
-    for index, file in enumerate(files):
-        for cookie in account_file:
+        publish_datetimes = [0 for i in range(len(file_paths))]
+    for index, file in enumerate(file_paths):
+        for cookie_idx, cookie in enumerate(account_paths):
             print(f"文件路径{str(file)}")
             print(f"视频文件名：{file}")
             print(f"标题：{title}")
             print(f"Hashtag：{tags}")
             print(f"仅预览不发布：{dry_run}")
-            app = TouTiaoVideo(title, str(file), tags, publish_datetimes[index], cookie, dry_run=dry_run)
-            if dry_run:
-                app.headless = False
-            asyncio.run(app.main(), debug=False)
+
+            def _do_upload(f=file, c=cookie, pdt=publish_datetimes[index]):
+                app = TouTiaoVideo(title, str(f), tags, pdt, c, dry_run=dry_run)
+                if dry_run:
+                    app.headless = False
+                asyncio.run(app.main(), debug=False)
+
+            run_tracked_upload(job_id, file_names[index], account_names[cookie_idx], _do_upload)
 
 
 def post_article_toutiao(
@@ -223,6 +258,7 @@ def post_article_toutiao(
     dry_run=False,
     cover_path="",
     work_statements=None,
+    job_id=None,
 ):
     """今日头条图文文章发布（contentType=article）。
 
@@ -230,7 +266,8 @@ def post_article_toutiao(
     单张封面最大 20MB，建议 JPEG/PNG。
     work_statements: 作品声明（单选）。可传字符串，或仅含一项的列表，如 "引用AI" / ["引用AI"]。
     """
-    account_paths = [Path(BASE_DIR / "cookiesFile" / file) for file in account_file]
+    account_names = [str(a) for a in account_file]
+    account_paths = [Path(BASE_DIR / "cookiesFile" / file) for file in account_names]
     cover = None
     if cover_path:
         raw = str(cover_path).strip()
@@ -263,7 +300,8 @@ def post_article_toutiao(
     else:
         publish_date = 0
 
-    for cookie in account_paths:
+    article_label = f"[文章]{(title or '').strip() or 'untitled'}"
+    for cookie_idx, cookie in enumerate(account_paths):
         print(f"cookie文件：{cookie}", flush=True)
         print(f"文章标题：{title}", flush=True)
         print(f"正文长度：{len(body or '')}", flush=True)
@@ -271,19 +309,23 @@ def post_article_toutiao(
         print(f"封面：{cover}", flush=True)
         print(f"作品声明：{work_statements}", flush=True)
         print(f"仅预览不发布：{dry_run}", flush=True)
-        app = TouTiaoArticle(
-            title=title,
-            body=body,
-            tags=tags or [],
-            publish_date=publish_date,
-            account_file=cookie,
-            dry_run=dry_run,
-            cover_path=cover,
-            work_statements=work_statements,
-        )
-        if dry_run:
-            app.headless = False
-        asyncio.run(app.main(), debug=False)
+
+        def _do_upload(c=cookie):
+            app = TouTiaoArticle(
+                title=title,
+                body=body,
+                tags=tags or [],
+                publish_date=publish_date,
+                account_file=c,
+                dry_run=dry_run,
+                cover_path=cover,
+                work_statements=work_statements,
+            )
+            if dry_run:
+                app.headless = False
+            asyncio.run(app.main(), debug=False)
+
+        run_tracked_upload(job_id, article_label, account_names[cookie_idx], _do_upload)
 
 
 def post_article_baijiahao(
@@ -298,6 +340,7 @@ def post_article_baijiahao(
     dry_run=False,
     cover_path="",
     ai_generated=False,
+    job_id=None,
 ):
     """百家号图文文章发布（contentType=article）。
 
@@ -314,7 +357,8 @@ def post_article_baijiahao(
         cover_path: 封面图片路径（百家号图文必填）
         ai_generated: 是否勾选「采用AI生成内容」
     """
-    account_paths = [Path(BASE_DIR / "cookiesFile" / file) for file in account_file]
+    account_names = [str(a) for a in account_file]
+    account_paths = [Path(BASE_DIR / "cookiesFile" / file) for file in account_names]
     cover = None
     if cover_path:
         raw = str(cover_path).strip()
@@ -349,26 +393,31 @@ def post_article_baijiahao(
     else:
         publish_date = 0
 
-    for cookie in account_paths:
+    article_label = f"[文章]{(title or '').strip() or 'untitled'}"
+    for cookie_idx, cookie in enumerate(account_paths):
         print(f"🟢 百家号图文文章发布开始: 账号={cookie}, dryRun={dry_run}", flush=True)
         print(f"文章标题：{title}", flush=True)
         print(f"正文长度：{len(body or '')} 字符", flush=True)
         print(f"Hashtag：{tags}", flush=True)
         print(f"封面：{cover}", flush=True)
-        app = BaiJiaHaoArticle(
-            title=title,
-            body=body,
-            tags=tags or [],
-            publish_date=publish_date,
-            account_file=str(cookie),
-            dry_run=dry_run,
-            cover_path=cover,
-            ai_generated=ai_generated,
-        )
-        if dry_run:
-            app.headless = False
-        asyncio.run(app.main(), debug=False)
-        print(f"✅ 百家号图文文章发布流程结束", flush=True)
+
+        def _do_upload(c=cookie):
+            app = BaiJiaHaoArticle(
+                title=title,
+                body=body,
+                tags=tags or [],
+                publish_date=publish_date,
+                account_file=str(c),
+                dry_run=dry_run,
+                cover_path=cover,
+                ai_generated=ai_generated,
+            )
+            if dry_run:
+                app.headless = False
+            asyncio.run(app.main(), debug=False)
+            print(f"✅ 百家号图文文章发布流程结束", flush=True)
+
+        run_tracked_upload(job_id, article_label, account_names[cookie_idx], _do_upload)
 
 
 def post_article_sohu(
@@ -384,13 +433,15 @@ def post_article_sohu(
     cover_path="",
     info_source=None,
     cover_paths=None,
+    job_id=None,
 ):
     """搜狐号图文文章发布（type=8, contentType=article）。
 
     cover_path / cover_paths: 封面图片。可多张；单张最大 10MB；jpg/jpeg/png/gif。
     info_source: 信息来源单选。无特别声明 / 引用声明 / 包含AI创作内容 / 包含虚构创作。
     """
-    account_paths = [Path(BASE_DIR / "cookiesFile" / file) for file in account_file]
+    account_names = [str(a) for a in account_file]
+    account_paths = [Path(BASE_DIR / "cookiesFile" / file) for file in account_names]
 
     raw_covers = []
     if cover_paths:
@@ -441,7 +492,8 @@ def post_article_sohu(
     else:
         publish_date = 0
 
-    for cookie in account_paths:
+    article_label = f"[文章]{(title or '').strip() or 'untitled'}"
+    for cookie_idx, cookie in enumerate(account_paths):
         print(f"🟢 搜狐号图文文章发布开始: 账号={cookie}, dryRun={dry_run}", flush=True)
         print(f"文章标题：{title}", flush=True)
         print(f"正文长度：{len(body or '')}", flush=True)
@@ -449,21 +501,25 @@ def post_article_sohu(
         print(f"封面数量：{len(resolved_covers)} {resolved_covers}", flush=True)
         print(f"信息来源：{info_source}", flush=True)
         print(f"仅预览不发布：{dry_run}", flush=True)
-        app = SoHuArticle(
-            title=title,
-            body=body,
-            tags=tags or [],
-            publish_date=publish_date,
-            account_file=cookie,
-            dry_run=dry_run,
-            cover_path=resolved_covers[0] if resolved_covers else None,
-            cover_paths=resolved_covers,
-            info_source=info_source,
-        )
-        if dry_run:
-            app.headless = False
-        asyncio.run(app.main(), debug=False)
-        print(f"✅ 搜狐号图文文章发布流程结束", flush=True)
+
+        def _do_upload(c=cookie):
+            app = SoHuArticle(
+                title=title,
+                body=body,
+                tags=tags or [],
+                publish_date=publish_date,
+                account_file=c,
+                dry_run=dry_run,
+                cover_path=resolved_covers[0] if resolved_covers else None,
+                cover_paths=resolved_covers,
+                info_source=info_source,
+            )
+            if dry_run:
+                app.headless = False
+            asyncio.run(app.main(), debug=False)
+            print(f"✅ 搜狐号图文文章发布流程结束", flush=True)
+
+        run_tracked_upload(job_id, article_label, account_names[cookie_idx], _do_upload)
 
 
 def post_article_zhihu(
@@ -478,13 +534,15 @@ def post_article_zhihu(
     dry_run=False,
     cover_path="",
     creation_statement=None,
+    job_id=None,
 ):
     """知乎文章发布（type=9, contentType=article）。
 
     cover_path: 可选封面图片，单张最大 10MB；jpg/jpeg/png。
     creation_statement: 创作声明下拉。默认「无声明」。
     """
-    account_paths = [Path(BASE_DIR / "cookiesFile" / file) for file in account_file]
+    account_names = [str(a) for a in account_file]
+    account_paths = [Path(BASE_DIR / "cookiesFile" / file) for file in account_names]
 
     cover = None
     if cover_path and str(cover_path).strip():
@@ -521,7 +579,8 @@ def post_article_zhihu(
     else:
         publish_date = 0
 
-    for cookie in account_paths:
+    article_label = f"[文章]{(title or '').strip() or 'untitled'}"
+    for cookie_idx, cookie in enumerate(account_paths):
         print(f"🟢 知乎文章发布开始: 账号={cookie}, dryRun={dry_run}", flush=True)
         print(f"文章标题：{title}", flush=True)
         print(f"正文长度：{len(body or '')}", flush=True)
@@ -529,20 +588,24 @@ def post_article_zhihu(
         print(f"封面：{cover}", flush=True)
         print(f"创作声明：{creation_statement}", flush=True)
         print(f"仅预览不发布：{dry_run}", flush=True)
-        app = ZhiHuArticle(
-            title=title,
-            body=body,
-            tags=tags or [],
-            publish_date=publish_date,
-            account_file=cookie,
-            dry_run=dry_run,
-            cover_path=cover,
-            creation_statement=creation_statement,
-        )
-        if dry_run:
-            app.headless = False
-        asyncio.run(app.main(), debug=False)
-        print(f"✅ 知乎文章发布流程结束", flush=True)
+
+        def _do_upload(c=cookie):
+            app = ZhiHuArticle(
+                title=title,
+                body=body,
+                tags=tags or [],
+                publish_date=publish_date,
+                account_file=c,
+                dry_run=dry_run,
+                cover_path=cover,
+                creation_statement=creation_statement,
+            )
+            if dry_run:
+                app.headless = False
+            asyncio.run(app.main(), debug=False)
+            print(f"✅ 知乎文章发布流程结束", flush=True)
+
+        run_tracked_upload(job_id, article_label, account_names[cookie_idx], _do_upload)
 
 
 def _build_bilibili_creation_extra_fields(creation_statement):
@@ -561,7 +624,7 @@ def _build_bilibili_creation_extra_fields(creation_statement):
     return json.dumps({"creation_statement": {"id": statement_id}}, ensure_ascii=False, separators=(",", ":"))
 
 
-def post_video_bilibili(title, files, tags, account_file, category=None, enableTimer=False, videos_per_day=1, daily_times=None, start_days=0, dry_run=False, creation_statement=None):
+def post_video_bilibili(title, files, tags, account_file, category=None, enableTimer=False, videos_per_day=1, daily_times=None, start_days=0, dry_run=False, creation_statement=None, job_id=None):
     """通过biliup CLI发布Bilibili视频
 
     creation_statement: B站创作声明 id
@@ -572,23 +635,25 @@ def post_video_bilibili(title, files, tags, account_file, category=None, enableT
        4 个人观点，仅供参考
       None 不传（不声明）
     """
-    account_file_paths = [Path(BASE_DIR / "cookiesFile" / file) for file in account_file]
-    files = [Path(BASE_DIR / "videoFile" / file) for file in files]
+    file_names = [str(f) for f in files]
+    account_names = [str(a) for a in account_file]
+    account_file_paths = [Path(BASE_DIR / "cookiesFile" / file) for file in account_names]
+    file_paths = [Path(BASE_DIR / "videoFile" / file) for file in file_names]
     if enableTimer:
-        publish_datetimes = generate_schedule_time_next_day(len(files), videos_per_day, daily_times, start_days)
+        publish_datetimes = generate_schedule_time_next_day(len(file_paths), videos_per_day, daily_times, start_days)
     else:
-        publish_datetimes = [0 for i in range(len(files))]
+        publish_datetimes = [0 for i in range(len(file_paths))]
     # Bilibili分区ID，默认21（日常）
     # 注意：Web 发布页的 category 目前只表示视频号原创，B站这里通常会落到默认 21
     tid = int(category) if category else 21
     extra_fields = _build_bilibili_creation_extra_fields(creation_statement)
     print(
-        f"🎬 开始B站发布: files={len(files)}, accounts={len(account_file_paths)}, "
+        f"🎬 开始B站发布: files={len(file_paths)}, accounts={len(account_file_paths)}, "
         f"tid={tid}, dry_run={dry_run}, creation_statement={creation_statement}",
         flush=True,
     )
-    for index, file in enumerate(files):
-        for cookie_file in account_file_paths:
+    for index, file in enumerate(file_paths):
+        for cookie_idx, cookie_file in enumerate(account_file_paths):
             print(f"文件路径{str(file)}", flush=True)
             print(f"视频文件名：{file}", flush=True)
             print(f"cookie文件：{cookie_file}", flush=True)
@@ -596,45 +661,58 @@ def post_video_bilibili(title, files, tags, account_file, category=None, enableT
             print(f"Hashtag：{tags}", flush=True)
             print(f"创作声明：{creation_statement}", flush=True)
             print(f"仅预览不发布：{dry_run}", flush=True)
-            if not file.exists():
-                raise FileNotFoundError(f"视频文件不存在: {file}")
-            if not cookie_file.exists():
-                raise FileNotFoundError(f"B站 cookie 文件不存在: {cookie_file}")
+
+            def _do_upload(f=file, c=cookie_file, pdt=publish_datetimes[index]):
+                if not f.exists():
+                    raise FileNotFoundError(f"视频文件不存在: {f}")
+                if not c.exists():
+                    raise FileNotFoundError(f"B站 cookie 文件不存在: {c}")
+                arguments = [
+                    "-u", str(c),
+                    "upload", str(f),
+                    "--title", title,
+                    "--desc", title,
+                    "--tid", str(tid),
+                    "--copyright", "1",
+                ]
+                if tags:
+                    arguments.extend(["--tag", ",".join(tags)])
+                if pdt != 0:
+                    import datetime
+                    if isinstance(pdt, datetime.datetime):
+                        dtime = str(int(pdt.timestamp()))
+                    else:
+                        dtime = str(int(pdt))
+                    arguments.extend(["--dtime", dtime])
+                if extra_fields:
+                    arguments.extend(["--extra-fields", extra_fields])
+                print(f"🚀 调用 biliup: {' '.join(arguments)}", flush=True)
+                result = run_biliup_command(arguments)
+                stdout_text = (result.stdout or "").strip()
+                stderr_text = (result.stderr or "").strip()
+                if stdout_text:
+                    print(f"[biliup stdout]\n{stdout_text}", flush=True)
+                if stderr_text:
+                    print(f"[biliup stderr]\n{stderr_text}", flush=True)
+                if result.returncode != 0:
+                    error_msg = stderr_text or stdout_text
+                    print(f"❌ Bilibili上传失败 (code={result.returncode}): {error_msg}", flush=True)
+                    raise RuntimeError(error_msg or "Bilibili upload failed")
+                print("✅ Bilibili上传成功", flush=True)
+
             if dry_run:
                 print("🛑 【仅预览不发布】B站走 biliup CLI，无浏览器可预览，已跳过实际上传", flush=True)
-                continue
-            arguments = [
-                "-u", str(cookie_file),
-                "upload", str(file),
-                "--title", title,
-                "--desc", title,
-                "--tid", str(tid),
-                "--copyright", "1",
-            ]
-            if tags:
-                arguments.extend(["--tag", ",".join(tags)])
-            if publish_datetimes[index] != 0:
-                import datetime
-                if isinstance(publish_datetimes[index], datetime.datetime):
-                    dtime = str(int(publish_datetimes[index].timestamp()))
-                else:
-                    dtime = str(int(publish_datetimes[index]))
-                arguments.extend(["--dtime", dtime])
-            if extra_fields:
-                arguments.extend(["--extra-fields", extra_fields])
-            print(f"🚀 调用 biliup: {' '.join(arguments)}", flush=True)
-            result = run_biliup_command(arguments)
-            stdout_text = (result.stdout or "").strip()
-            stderr_text = (result.stderr or "").strip()
-            if stdout_text:
-                print(f"[biliup stdout]\n{stdout_text}", flush=True)
-            if stderr_text:
-                print(f"[biliup stderr]\n{stderr_text}", flush=True)
-            if result.returncode != 0:
-                error_msg = stderr_text or stdout_text
-                print(f"❌ Bilibili上传失败 (code={result.returncode}): {error_msg}", flush=True)
-                raise RuntimeError(error_msg or "Bilibili upload failed")
-            print("✅ Bilibili上传成功", flush=True)
+                if job_id is not None:
+                    from myUtils.publish_job import RESULT_SKIPPED, update_publish_result
+                    update_publish_result(
+                        job_id,
+                        file_names[index],
+                        account_names[cookie_idx],
+                        RESULT_SKIPPED,
+                        "仅预览不发布，已跳过",
+                    )
+            else:
+                run_tracked_upload(job_id, file_names[index], account_names[cookie_idx], _do_upload)
 
 
 # post_video("333",["demo.mp4"],"d","d")

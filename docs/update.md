@@ -1,125 +1,43 @@
 # 更新说明
 
-这个文档分成两部分：
+本次更新以 Web 界面及其后端流程为主。首次安装见 [README](../README.md#安装)，排障见 [安装说明](./install.md)，当前能力和验证范围见 [项目状态](./status.md)。
 
-- `For Humans`：给正常使用仓库的人看
-- `For AI Agents`：给能执行命令和自动排查的 agent 看
+## 同步代码与依赖
 
-## For Humans
-
-### 1. 拉取最新代码
+先停止正在运行的前后端，并保留本地配置、Cookie、数据库和素材。Git 用户在自己的源码根目录拉取更新：
 
 ```bash
 git pull
+uv sync --locked --extra web --python 3.12
+npm --prefix sau_frontend ci
+uv run --no-sync python db/createTable.py
 ```
 
-如果你平时是切分支开发，请先确认当前所在分支。
+纯 CLI 用户可去掉 `--extra web`，并跳过前端安装和数据库初始化。使用源码 ZIP 的用户应解压新源码，迁移所需的本地配置和数据；不要对没有 `.git` 的目录执行 `git pull`。
 
-### 2. 更新本地可编辑安装
+普通更新使用仓库提供的锁文件，不需要执行 `uv lock` 或重新生成 `package-lock.json`。数据库初始化会创建缺少的表和运行目录，不会删除已有记录；它不等同于任意版本之间的完整数据迁移工具。
 
-如果仓库最近改了 CLI、入口脚本、依赖配置，建议重新执行：
+浏览器驱动版本变化时，按 README 检查 Chrome，并更新 Web 校验所需的 Chromium：
 
 ```bash
-uv pip install -e .
+uv run --no-sync playwright install chromium
 ```
 
-### 3. 如有需要，更新浏览器依赖
+如果使用自定义 `PLAYWRIGHT_BROWSERS_PATH`，安装和运行时保持一致。
 
-当前主线使用 `patchright`。
-
-Windows PowerShell：
-
-```powershell
-$env:PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright"; patchright install chromium
-```
-
-Linux / macOS：
+## 更新后检查
 
 ```bash
-PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright" patchright install chromium
+uv run --no-sync sau --help
+uv run --no-sync sau douyin --help
+uv run --no-sync sau kuaishou --help
+uv run --no-sync sau xiaohongshu --help
+uv run --no-sync sau bilibili --help
+uv run --no-sync sau tencent --help
 ```
 
-### 4. 更新后自检
+Web 用户再运行 `npm --prefix sau_frontend run build`，并按 README 在两个终端启动服务，检查首页和基础接口。默认地址为 `http://127.0.0.1:5173/`，后端仅监听 `127.0.0.1:5409`。
 
-建议至少检查：
+CLI 帮助和 Web 页面检查无需真实平台登录。账号校验、上传、发布与数据同步应在用户明确指定账号和操作后单独验证，并记录具体平台、入口和结果。
 
-```bash
-sau --help
-sau douyin --help
-sau kuaishou --help
-sau xiaohongshu --help
-sau bilibili --help
-sau douyin check --account your_account
-sau kuaishou check --account your_account
-sau xiaohongshu check --account your_account
-sau bilibili check --account your_account
-```
-
-如果你在使用 skill，也建议同步看一下：
-
-- `skills/douyin-upload/SKILL.md`
-- `skills/kuaishou-upload/SKILL.md`
-- `skills/xiaohongshu-upload/SKILL.md`
-- `skills/bilibili-upload/SKILL.md`
-- `docs/CLI.md`
-
-## For AI Agents
-
-如果你是 agent，更新仓库后建议按下面顺序做最小验证：
-
-1. 拉取最新代码：
-
-```bash
-git pull
-```
-
-2. 重新同步本地安装：
-
-```bash
-uv pip install -e .
-```
-
-3. 如需浏览器驱动，更新 `patchright` Chromium
-
-4. 重新验证 CLI：
-
-```bash
-sau --help
-sau douyin --help
-sau kuaishou --help
-sau xiaohongshu --help
-sau bilibili --help
-```
-
-5. 如果任务是浏览器平台链路，再继续验证：
-
-```bash
-sau douyin check --account test
-sau kuaishou check --account test
-sau xiaohongshu check --account test
-sau bilibili check --account test
-```
-
-6. 如果用户依赖 skill，再检查这些路径是否仍存在且契约没变：
-
-- `skills/douyin-upload/SKILL.md`
-- `skills/douyin-upload/references/cli-contract.md`
-- `skills/douyin-upload/references/runtime-requirements.md`
-- `skills/kuaishou-upload/SKILL.md`
-- `skills/kuaishou-upload/references/cli-contract.md`
-- `skills/kuaishou-upload/references/runtime-requirements.md`
-- `skills/xiaohongshu-upload/SKILL.md`
-- `skills/xiaohongshu-upload/references/cli-contract.md`
-- `skills/xiaohongshu-upload/references/runtime-requirements.md`
-- `skills/bilibili-upload/SKILL.md`
-- `skills/bilibili-upload/references/cli-contract.md`
-- `skills/bilibili-upload/references/runtime-requirements.md`
-
-### 对 agent 的额外说明
-
-- 优先相信 `pyproject.toml`，不要把 `requirements.txt` 视为当前主线真相
-- 当前 README 只做总览，安装和更新以 `docs/install.md`、`docs/update.md` 为准
-- Web 相关内容属于历史路径，见 `docs/legacy-web.md`
-- 如果更新后的登录流程输出了本地二维码图片，agent 应直接把图片展示/发送给用户扫码，不要只回传图片路径
-- Bilibili 命令运行时会自动检查并更新 `biliup`
-- Bilibili 登录当前仍建议让用户自己在本地真实终端里执行；如果二维码显示不完整，可让用户直接打开 `qrcode.png` 扫码
+使用 Skill 的用户应同步对应的 `skills/<platform>-upload/` 整个目录，并核对命令契约。当前维护和推荐入口为 Web；CLI、examples 和 Skill 未随本次 Web 更新同步维护，仅保留供兼容与开发参考。

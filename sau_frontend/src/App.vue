@@ -1,4 +1,5 @@
 <template>
+  <el-config-provider :locale="zhCn">
   <div id="app">
     <el-container>
       <el-aside :width="isCollapse ? '64px' : '200px'">
@@ -23,6 +24,10 @@
             <el-menu-item index="/account-management">
               <el-icon><User /></el-icon>
               <span>账号管理</span>
+            </el-menu-item>
+            <el-menu-item index="/creator-center">
+              <el-icon><Monitor /></el-icon>
+              <span>创作者中心</span>
             </el-menu-item>
             <el-menu-item index="/material-management">
               <el-icon><Picture /></el-icon>
@@ -50,7 +55,7 @@
               <el-icon class="toggle-sidebar" @click="toggleSidebar"><Fold /></el-icon>
             </div>
             <div class="header-right">
-              <!-- 账号信息已移除 -->
+              <PublishLogButton />
             </div>
           </div>
         </el-header>
@@ -60,14 +65,17 @@
       </el-container>
     </el-container>
   </div>
+  </el-config-provider>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
+import PublishLogButton from '@/components/PublishLogButton.vue'
 import {
   HomeFilled, User, DataLine, InfoFilled,
-  Fold, Picture, Upload
+  Fold, Picture, Upload, Monitor
 } from '@element-plus/icons-vue'
 
 const route = useRoute()

@@ -5,7 +5,7 @@ import sqlite3
 import threading
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from queue import Queue
 from flask_cors import CORS
@@ -13,7 +13,21 @@ from myUtils.auth import check_cookie
 from flask import Flask, request, jsonify, Response, render_template, send_from_directory
 from conf import BASE_DIR
 from myUtils.login import get_tencent_cookie, douyin_cookie_gen, get_ks_cookie, xiaohongshu_cookie_gen, baijiahao_cookie_gen, bilibili_cookie_gen, toutiao_cookie_gen, sohu_cookie_gen, zhihu_cookie_gen
+from myUtils.creator_center import (
+    PLATFORM_LABELS as CREATOR_PLATFORM_LABELS,
+    cookie_path,
+    get_creator_url,
+    load_account,
+    open_creator_center_in_thread,
+)
 from myUtils.postVideo import post_video_tencent, post_video_DouYin, post_video_ks, post_video_xhs, post_video_baijiahao, post_video_bilibili, post_video_toutiao, post_article_toutiao, post_article_baijiahao, post_article_sohu, post_article_zhihu
+from myUtils.publish_job import (
+    build_article_job_items,
+    build_video_job_items,
+    create_publish_job,
+    finalize_publish_job,
+    get_publish_job,
+)
 from uploader.douyin_uploader.content_stats import (
     DouyinStatsSyncError,
     ensure_content_stats_table,
@@ -33,13 +47,22 @@ from uploader.bilibili_uploader.content_stats import (
     BilibiliStatsSyncError,
     sync_recent_items_sync as sync_bilibili_content_stats,
 )
+from uploader.tencent_uploader.content_stats import (
+    TencentStatsSyncError,
+    sync_recent_items_sync as sync_tencent_content_stats,
+)
 
 SUPPORTED_STATS_PLATFORMS = {
     "douyin": {"type": 3, "label": "抖音"},
     "kuaishou": {"type": 4, "label": "快手"},
     "xiaohongshu": {"type": 1, "label": "小红书"},
     "bilibili": {"type": 6, "label": "B站"},
+    "tencent": {"type": 2, "label": "视频号"},
 }
+
+
+def _stats_platform_hint() -> str:
+    return "|".join(SUPPORTED_STATS_PLATFORMS)
 
 import conf as app_conf
 from myUtils.dingtalk import (
@@ -93,8 +116,8 @@ def _load_stats_payload(conn, platform: str, account_id: int):
     last = rows[0]["synced_at"] if rows else None
     return {"items": [_row_to_stat_item(r) for r in rows], "lastSyncedAt": last}
 
-#允许所有来源跨域访问
-CORS(app)
+# 仅允许本机前端跨域访问（开发、预览及自定义本地端口）。
+CORS(app, origins=[r"^https?://(?:localhost|127\.0\.0\.1)(?::[0-9]{1,5})?$"])
 
 # 限制上传文件大小为160MB
 app.config['MAX_CONTENT_LENGTH'] = 160 * 1024 * 1024
@@ -227,6 +250,20 @@ def upload_save():
             "data": None
         }), 500
 
+def format_sqlite_utc_to_local(value):
+    """SQLite CURRENT_TIMESTAMP 存的是 UTC，转成系统本地时间再展示。"""
+    if not value:
+        return value
+    text = str(value).strip()
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"):
+        try:
+            dt = datetime.strptime(text, fmt).replace(tzinfo=timezone.utc)
+            return dt.astimezone().strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            continue
+    return value
+
+
 @app.route('/getFiles', methods=['GET'])
 def get_all_files():
     try:
@@ -243,6 +280,7 @@ def get_all_files():
             data = []
             for row in rows:
                 row_dict = dict(row)
+                row_dict['upload_time'] = format_sqlite_utc_to_local(row_dict.get('upload_time'))
                 # 从 file_path 中提取 UUID (文件名的第一部分，下划线前)
                 if row_dict.get('file_path'):
                     file_path_parts = row_dict['file_path'].split('_', 1)  # 只分割第一个下划线
@@ -340,6 +378,56 @@ async def getValidAccounts():
                             "msg": None,
                             "data": rows_list
                         }),200
+
+
+@app.route("/openCreatorCenter", methods=["POST"])
+def open_creator_center():
+    """用已保存 cookie 打开对应平台创作者中心（有头浏览器）。"""
+    data = request.get_json(silent=True) or {}
+    account_id = data.get("id") if data else request.args.get("id")
+    if account_id is None:
+        return jsonify({"code": 400, "msg": "缺少账号 id", "data": None}), 400
+    try:
+        account_id = int(account_id)
+    except (TypeError, ValueError):
+        return jsonify({"code": 400, "msg": "账号 id 无效", "data": None}), 400
+
+    try:
+        account = load_account(account_id)
+        url = get_creator_url(account["type"])
+        if not url:
+            return jsonify({
+                "code": 400,
+                "msg": f"不支持的平台类型: {account['type']}",
+                "data": None,
+            }), 400
+        cookie_path(account["filePath"])
+    except FileNotFoundError as e:
+        return jsonify({"code": 404, "msg": str(e), "data": None}), 404
+    except ValueError as e:
+        return jsonify({"code": 404, "msg": str(e), "data": None}), 404
+    except Exception as e:
+        return jsonify({"code": 500, "msg": f"校验失败: {e}", "data": None}), 500
+
+    thread = threading.Thread(
+        target=open_creator_center_in_thread,
+        args=(account_id,),
+        daemon=True,
+    )
+    thread.start()
+
+    label = CREATOR_PLATFORM_LABELS.get(account["type"], "未知平台")
+    return jsonify({
+        "code": 200,
+        "msg": f"正在打开 {label} 创作者中心",
+        "data": {
+            "accountId": account_id,
+            "platform": label,
+            "userName": account["userName"],
+            "url": url,
+        },
+    }), 200
+
 
 @app.route('/deleteFile', methods=['GET'])
 def delete_file():
@@ -618,26 +706,32 @@ def postVideo():
     )
 
     # 参数校验通过后，在后台线程中执行发布任务，避免阻塞Flask主线程。
-    # 前端拿到的 200 只表示“任务已提交”，不代表平台已经发布成功。
+    # 前端拿到的 200 只表示“任务已提交”，真实结果通过 jobId 轮询 /publishJob/<id>。
+    if is_article:
+        job_items = build_article_job_items(title, account_list)
+    else:
+        job_items = build_video_job_items(file_list, account_list)
+    job_id = create_publish_job(type, title, job_items)
+
     def run_publish_task():
         try:
             print(
-                f"🧵 后台发布线程启动: type={type}, title={title}, dryRun={dry_run}, contentType={content_type}",
+                f"🧵 后台发布线程启动: jobId={job_id}, type={type}, title={title}, dryRun={dry_run}, contentType={content_type}",
                 flush=True,
             )
             match type:
                 case 1:
                     post_video_xhs(title, file_list, tags, account_list, category, enableTimer, videos_per_day, daily_times,
-                                       start_days, dry_run, ai_generated)
+                                       start_days, dry_run, ai_generated, job_id)
                 case 2:
                     post_video_tencent(title, file_list, tags, account_list, category, enableTimer, videos_per_day, daily_times,
-                                       start_days, is_draft, dry_run, ai_generated)
+                                       start_days, is_draft, dry_run, ai_generated, job_id)
                 case 3:
                     post_video_DouYin(title, file_list, tags, account_list, category, enableTimer, videos_per_day, daily_times,
-                              start_days, thumbnail_path, productLink, productTitle, ai_generated, dry_run)
+                              start_days, thumbnail_path, productLink, productTitle, ai_generated, dry_run, job_id)
                 case 4:
                     post_video_ks(title, file_list, tags, account_list, category, enableTimer, videos_per_day, daily_times,
-                              start_days, dry_run, ai_generated)
+                              start_days, dry_run, ai_generated, job_id)
                 case 5:
                     if content_type == 'article':
                         post_article_baijiahao(
@@ -651,13 +745,15 @@ def postVideo():
                             start_days,
                             dry_run,
                             thumbnail_path,
+                            ai_generated,
+                            job_id,
                         )
                     else:
                         post_video_baijiahao(title, file_list, tags, account_list, category, enableTimer, videos_per_day, daily_times,
-                                  start_days, dry_run)
+                                  start_days, dry_run, job_id)
                 case 6:
                     post_video_bilibili(title, file_list, tags, account_list, category, enableTimer, videos_per_day, daily_times,
-                              start_days, dry_run, bilibili_creation_statement)
+                              start_days, dry_run, bilibili_creation_statement, job_id)
                 case 7:
                     if content_type == 'article':
                         post_article_toutiao(
@@ -672,10 +768,11 @@ def postVideo():
                             dry_run,
                             thumbnail_path,
                             work_statements,
+                            job_id,
                         )
                     else:
                         post_video_toutiao(title, file_list, tags, account_list, category, enableTimer, videos_per_day, daily_times,
-                                  start_days, dry_run)
+                                  start_days, dry_run, job_id)
                 case 8:
                     post_article_sohu(
                         title,
@@ -690,6 +787,7 @@ def postVideo():
                         thumbnail_path,
                         work_statements[0] if work_statements else (work_statement or None),
                         cover_images,
+                        job_id,
                     )
                 case 9:
                     post_article_zhihu(
@@ -704,12 +802,18 @@ def postVideo():
                         dry_run,
                         thumbnail_path,
                         work_statements[0] if work_statements else (work_statement or None),
+                        job_id,
                     )
-            print(f"✅ 发布任务完成: type={type}, title={title}", flush=True)
+            print(f"✅ 发布任务完成: jobId={job_id}, type={type}, title={title}", flush=True)
         except Exception as e:
-            print(f"❌ 发布视频时出错: {str(e)}", flush=True)
+            print(f"❌ 发布视频时出错: jobId={job_id}, {str(e)}", flush=True)
             import traceback
             traceback.print_exc()
+        finally:
+            try:
+                finalize_publish_job(job_id)
+            except Exception as finalize_err:
+                print(f"❌ 汇总发布任务失败: jobId={job_id}, {finalize_err}", flush=True)
 
     thread = threading.Thread(target=run_publish_task, daemon=True)
     thread.start()
@@ -743,8 +847,16 @@ def postVideo():
         {
             "code": 200,
             "msg": submit_msg,
-            "data": None
+            "data": {"jobId": job_id}
         }), 200
+
+
+@app.route('/publishJob/<int:job_id>', methods=['GET'])
+def publish_job_status(job_id: int):
+    job = get_publish_job(job_id)
+    if not job:
+        return jsonify({"code": 404, "msg": "发布任务不存在", "data": None}), 404
+    return jsonify({"code": 200, "msg": "ok", "data": job}), 200
 
 
 @app.route('/updateUserinfo', methods=['POST'])
@@ -1141,7 +1253,7 @@ def get_content_stats():
     if not account_id:
         return jsonify({"code": 400, "msg": "accountId 不能为空", "data": None}), 400
     if platform not in SUPPORTED_STATS_PLATFORMS:
-        return jsonify({"code": 400, "msg": "仅支持 platform=douyin|kuaishou|xiaohongshu|bilibili", "data": None}), 400
+        return jsonify({"code": 400, "msg": f"仅支持 platform={_stats_platform_hint()}", "data": None}), 400
     try:
         with sqlite3.connect(_db_path()) as conn:
             payload = _load_stats_payload(conn, platform, account_id)
@@ -1165,7 +1277,7 @@ def sync_content_stats():
         return jsonify({"code": 400, "msg": "accountId 无效", "data": None}), 400
     meta = SUPPORTED_STATS_PLATFORMS.get(platform)
     if not meta:
-        return jsonify({"code": 400, "msg": "仅支持 platform=douyin|kuaishou|xiaohongshu|bilibili", "data": None}), 400
+        return jsonify({"code": 400, "msg": f"仅支持 platform={_stats_platform_hint()}", "data": None}), 400
     if limit < 1 or limit > 20:
         return jsonify({"code": 400, "msg": "limit 需在 1-20", "data": None}), 400
 
@@ -1190,6 +1302,8 @@ def sync_content_stats():
             items = sync_kuaishou_content_stats(cookie_path, limit=limit)
         elif platform == "xiaohongshu":
             items = sync_xiaohongshu_content_stats(cookie_path, limit=limit)
+        elif platform == "tencent":
+            items = sync_tencent_content_stats(cookie_path, limit=limit)
         else:
             items = sync_bilibili_content_stats(cookie_path, limit=limit)
     except (
@@ -1197,6 +1311,7 @@ def sync_content_stats():
         KuaishouStatsSyncError,
         XiaohongshuStatsSyncError,
         BilibiliStatsSyncError,
+        TencentStatsSyncError,
     ) as e:
         return jsonify({"code": e.code, "msg": e.message, "data": None}), e.code
     except Exception as e:
@@ -1240,7 +1355,7 @@ def push_content_stats_to_dingtalk():
                 return jsonify(
                     {
                         "code": 400,
-                        "msg": "仅支持 platform=douyin|kuaishou|xiaohongshu|bilibili",
+                        "msg": f"仅支持 platform={_stats_platform_hint()}",
                         "data": None,
                     }
                 ), 400
@@ -1255,7 +1370,7 @@ def push_content_stats_to_dingtalk():
             return jsonify(
                 {
                     "code": 400,
-                    "msg": "仅支持 platform=douyin|kuaishou|xiaohongshu|bilibili",
+                    "msg": f"仅支持 platform={_stats_platform_hint()}",
                     "data": None,
                 }
             ), 400
@@ -1442,4 +1557,4 @@ def sse_stream(status_queue):
             time.sleep(0.1)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0' ,port=5409)
+    app.run(host='127.0.0.1', port=5409)

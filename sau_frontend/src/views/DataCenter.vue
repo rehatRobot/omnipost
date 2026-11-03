@@ -3,7 +3,7 @@
     <div class="page-header">
       <h1>数据中心</h1>
       <p class="subtitle">
-        查看抖音 / 快手 / 小红书 / B站作品最近互动数据（每次同步最近 5 条）
+        查看抖音 / 快手 / 小红书 / B站 / 视频号作品最近互动数据（每次同步最近 5 条）
         <template v-if="selectedPlatform === 'douyin'">；抖音同步含流量与观众分析，可能较慢</template>
         <template v-else-if="selectedPlatform === 'kuaishou'">；快手同步含流量分析与助推</template>
       </p>
@@ -20,6 +20,7 @@
         <el-option label="快手" value="kuaishou" />
         <el-option label="小红书" value="xiaohongshu" />
         <el-option label="B站" value="bilibili" />
+        <el-option label="视频号" value="tencent" />
       </el-select>
       <el-select
         v-model="selectedAccountId"
@@ -225,6 +226,7 @@ import KuaishouStatsTable from '@/components/stats/KuaishouStatsTable.vue'
 
 const STATS_TYPE_TO_PLATFORM = {
   1: 'xiaohongshu',
+  2: 'tencent',
   3: 'douyin',
   4: 'kuaishou',
   6: 'bilibili'
@@ -280,6 +282,7 @@ function statsPlatformOf(acc) {
   if (acc.platform === '快手') return 'kuaishou'
   if (acc.platform === 'B站') return 'bilibili'
   if (acc.platform === '抖音') return 'douyin'
+  if (acc.platform === '视频号') return 'tencent'
   return null
 }
 
@@ -287,6 +290,7 @@ const platformLabel = computed(() => {
   if (selectedPlatform.value === 'kuaishou') return '快手'
   if (selectedPlatform.value === 'xiaohongshu') return '小红书'
   if (selectedPlatform.value === 'bilibili') return 'B站'
+  if (selectedPlatform.value === 'tencent') return '视频号'
   return '抖音'
 })
 const platformPlaceholder = computed(() => `选择${platformLabel.value}账号`)
@@ -301,6 +305,9 @@ const filteredAccounts = computed(() => {
   if (selectedPlatform.value === 'bilibili') {
     return accountStore.accounts.filter((a) => a.platform === 'B站' || a.type === 6)
   }
+  if (selectedPlatform.value === 'tencent') {
+    return accountStore.accounts.filter((a) => a.platform === '视频号' || a.type === 2)
+  }
   return accountStore.accounts.filter((a) => a.platform === '抖音' || a.type === 3)
 })
 
@@ -308,7 +315,8 @@ const PLATFORM_ORDER = [
   { platform: 'douyin', label: '抖音' },
   { platform: 'kuaishou', label: '快手' },
   { platform: 'xiaohongshu', label: '小红书' },
-  { platform: 'bilibili', label: 'B站' }
+  { platform: 'bilibili', label: 'B站' },
+  { platform: 'tencent', label: '视频号' }
 ]
 
 const pushableAccounts = computed(() => {

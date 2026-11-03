@@ -10,6 +10,8 @@ description: 当 agent 需要通过已安装的 `sau` CLI 完成 Bilibili 登录
 不要一开始就让用户自己找 `biliup` 或手动下载 release。
 程序会在运行时自动检查、自动下载、自动更新 `biliup`。
 
+这里描述代码提供的 CLI 功能，不表示当前版本已完成真实账号发布验证。运行前提和命令调用方式见 `references/runtime-requirements.md`。
+
 ## 功能概览
 
 | 功能 | 命令入口 | 说明 |

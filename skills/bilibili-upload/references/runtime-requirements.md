@@ -1,49 +1,22 @@
 # 运行前提
 
-这个 skill 默认假设当前环境已经具备：
+此 Skill 操作 OmniPost 的 `bilibili` CLI。项目名称为 OmniPost，Python 包名仍为 `social-auto-upload`，CLI 命令为 `sau`。
 
-- 已安装 `social-auto-upload`
-- 可以调用 `sau`，或者至少可以执行 `python sau_cli.py`
-- 当前机器首次运行时可以联网访问 GitHub Release
+## 源码环境
 
-## 关键说明
-
-用户不需要自己安装 `biliup`。
-
-当你执行 `sau bilibili ...` 时：
-
-- 如果本地没有 `biliup`，程序会自动下载
-- 如果上游 GitHub Release 有更新，程序会自动更新后再继续执行
-
-## 推荐调用方式
-
-### `sau` 已在 PATH 中
+在 OmniPost 源码根目录按 README 复制 `conf.example.py` 为 `conf.py`（保留已有配置），再执行：
 
 ```bash
-sau bilibili --help
+uv sync --locked --python 3.12
+uv run --no-sync sau bilibili --help
 ```
 
-### 仓库内直接调用
+Python 支持 3.10–3.12，推荐 3.12。Web 管理台另需 `--extra web` 和前端安装，完整步骤以源码 README 为准。单独复制 Skill 不会安装项目或运行依赖。
 
-PowerShell：
+本 Skill 的命令契约中使用 `sau ...` 简写。可在已激活 `.venv` 或 `sau` 已在 PATH 的环境直接调用；在源码根目录、未激活环境时使用 `uv run --no-sync sau ...`。从仓库外调用前，先进入正确的源码目录或定位已安装的可执行文件。
 
-```powershell
-.\.venv\Scripts\python.exe sau_cli.py bilibili --help
-```
+## Bilibili 运行时
 
-bash / zsh：
+Bilibili 通过 biliup 执行，用户不需要手动安装它。相关命令会准备本地运行时并检查上游版本，因此需要能访问对应的 GitHub Release；CLI 帮助检查不会下载运行时。
 
-```bash
-python sau_cli.py bilibili --help
-```
-
-## 首次运行注意事项
-
-- 首次运行可能比其他平台更慢，因为要自动准备 `biliup`
-- 如果网络无法访问 GitHub Release，Bilibili 命令会失败
-- 一旦本地已经准备好 `biliup`，后续命令会直接复用
-- `sau bilibili login --account <name>` 需要用户自己在本地真实终端里执行
-- 如果终端二维码显示不完整，通常可以直接打开当前目录下的 `qrcode.png` 扫码
-- 如果国内网络访问 GitHub Release 较慢，可先用 `https://gh-proxy.com/` 或 `https://gh-proxy.org/` 辅助访问对应 release 地址排障
-- 示例：
-  - `https://gh-proxy.org/https://github.com/biliup/biliup/releases/download/v1.1.29/biliupR-v1.1.29-aarch64-linux.tar.xz`
+登录建议由用户在本地真实终端执行。如果终端二维码显示不完整，可按命令输出的位置打开 `qrcode.png`。后续使用会复用本地运行时，但仍可能检查并更新上游版本。

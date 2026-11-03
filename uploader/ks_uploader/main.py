@@ -892,6 +892,7 @@ class KSVideo(KSBaseUploader):
                         await asyncio.sleep(1)
                 else:
                     kuaishou_logger.error(_msg("❌", f"发布超时：{max_publish_retries}次尝试后仍未成功"))
+                    raise RuntimeError(f"发布超时：{max_publish_retries}次尝试后仍未成功")
 
                 upload_success = True
         finally:

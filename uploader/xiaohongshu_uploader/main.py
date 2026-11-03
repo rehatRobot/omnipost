@@ -804,6 +804,7 @@ class XiaoHongShuVideo(XiaoHongShuBaseUploader):
                 await asyncio.sleep(0.5)
         else:
             xiaohongshu_logger.error(_msg("❌", f"发布超时：{max_publish_retries}次尝试后仍未成功"))
+            raise RuntimeError(f"发布超时：{max_publish_retries}次尝试后仍未成功")
 
     async def upload(self, playwright: Playwright) -> None:
         xiaohongshu_logger.info(_msg("🧍", "小人先检查 cookie、视频文件、封面和发布时间"))

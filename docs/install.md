@@ -1,231 +1,73 @@
-# 安装说明
+# 安装与排障
 
-这个文档分成两部分：
+当前推荐使用 Web 管理台；CLI、examples 和 Skill 未随本次 Web 更新同步维护，相关说明仅供兼容参考。项目定位与验证范围见 [项目状态](./status.md)。完整安装命令统一维护在 [README 的安装章节](../README.md#安装)。请从该章节依次执行配置复制、`uv sync --locked --extra web --python 3.12`、浏览器安装、数据库初始化、`npm ci` 和前后端启动。
 
-- `For Humans`：给正常使用仓库的开发者、创作者、CLI 用户看
-- `For AI Agents`：给 OpenClaw、Codex、Claude Code 一类 agent 看
+## 安装约定
 
-如果你是“正在使用 agent 客户端的人”，想先给 agent 一段启动提示词，而不是直接阅读下面的执行细节，先看：
+- 进入包含 `pyproject.toml` 的源码根目录；下载 ZIP 后先解压。
+- 使用 Python 3.10–3.12，推荐 3.12；Node.js 使用 22 或 24。
+- 先复制 `conf.example.py` 为 `conf.py`，再安装项目。不要覆盖已有配置。
+- `uv sync --locked --extra web --python 3.12` 负责创建 `.venv` 并安装依赖，无需手动激活。
+- 仅使用 CLI：`uv sync --locked --python 3.12`，无需 Node.js 和前端依赖。
+- 后续命令使用 `uv run --no-sync`，避免无意同步为不含 Web 依赖的环境。
+- `uv.lock` 与 `sau_frontend/package-lock.json` 都需要随源码发布；普通安装不要重新生成锁文件。
+- `requirements.txt` 是指向 `.[web]` 的 pip 兼容入口，不作为锁定安装方式。
+- 后端（5409）、前端开发服务（5173）和构建预览（4173）默认仅监听 `127.0.0.1`；后端仅向本机来源提供跨域响应头。容器内的 `127.0.0.1` 属于容器本身，默认启动方式不提供容器端口映射访问。
 
-- [Agent Bootstrap Prompt](./agent-bootstrap.md)
+## 常见问题
 
-## For Humans
+| 现象 | 处理 |
+| --- | --- |
+| 找不到 `uv` | 用可用的 Python 执行 `python -m pip install --upgrade uv`，重新打开终端并检查 `uv --version` |
+| Python 版本不受支持 | 使用 README 中的 `--python 3.12`，不要用 Python 3.13+ 创建环境 |
+| `No module named conf` | 在项目根目录复制配置模板；不要在未解压的 ZIP 中运行 |
+| 缺少 Flask、xhs、Playwright 等模块 | 在根目录重新执行 `uv sync --locked --extra web --python 3.12`，并使用 `uv run --no-sync` 启动 |
+| 找不到 `sau` | 使用 `uv run --no-sync sau --help`，无需全局安装或激活虚拟环境 |
+| `no such table: user_info` | 在根目录执行 `uv run --no-sync python db/createTable.py`；重复初始化不会删除账号 |
+| 上传提示目录不存在 | 重新运行数据库初始化脚本，它会创建 Cookie 和素材目录 |
+| 找不到 Chrome | 安装 Google Chrome 稳定版；`playwright install chromium` 不会安装 `channel="chrome"` 使用的 Chrome |
+| 找不到 Playwright Chromium | 执行 `uv run --no-sync playwright install chromium`；Linux 可加 `--with-deps` 安装系统库 |
+| 浏览器安装长时间无输出 | 检查是否有其他安装进程或旧缓存锁；不要同时运行多个浏览器安装。受限环境可通过 `PLAYWRIGHT_BROWSERS_PATH` 指定可写缓存目录，但安装和后续运行必须使用相同设置 |
+| npm 提示没有锁文件 | 确认使用当前完整源码，其中应包含 `sau_frontend/package-lock.json` |
+| 前端提示接口连接失败 | 确认后端终端没有异常，访问 `http://127.0.0.1:5409/getAccounts` 应返回 `code: 200` |
+| 5173 端口占用 | 停止已有前端，或传入 `--port 5174` 并使用终端输出的新地址 |
+| 5409 端口占用 | 停止已有后端，不要重复启动；Windows 可用 `Get-NetTCPConnection -LocalPort 5409 -State Listen` 查看 |
+| 下载超时 | 检查代理与网络。可通过 uv 的 `--index-url` 或 npm 的 `--registry` 临时指定可信镜像，不要删除锁文件绕过错误 |
 
-### 1. 克隆项目
+## 使用独立浏览器缓存
 
-```bash
-git clone https://github.com/dreammis/social-auto-upload.git
-cd social-auto-upload
-```
-
-### 2. 创建虚拟环境
-
-推荐使用 `uv`：
-
-Windows PowerShell：
-
-```powershell
-uv venv
-.venv\Scripts\activate
-```
-
-Linux / macOS：
-
-```bash
-uv venv
-source .venv/bin/activate
-```
-
-### 3. 安装主线依赖
-
-当前主线依赖已经放到 `pyproject.toml`，推荐直接执行：
-
-```bash
-uv pip install -e .
-```
-
-安装完成后，会注册 `sau` 命令。
-
-### 4. 安装 patchright Chromium
-
-当前主线使用 `patchright` 驱动浏览器。
-
-国内用户推荐先指定镜像，再安装 Chromium。
+如果默认浏览器缓存因旧锁或目录权限导致安装停滞，可以使用项目内的可写目录。先进入项目根目录，再在同一个终端中设置环境变量、安装浏览器和启动后端。
 
 Windows PowerShell：
 
 ```powershell
-$env:PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright"; patchright install chromium
+$env:PLAYWRIGHT_BROWSERS_PATH = Join-Path (Get-Location) '.uv-cache/playwright-browsers'
+uv run --no-sync playwright install chromium
+uv run --no-sync python sau_backend.py
 ```
 
-Linux / macOS：
+macOS / Linux：
 
 ```bash
-PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright" patchright install chromium
+export PLAYWRIGHT_BROWSERS_PATH="$PWD/.uv-cache/playwright-browsers"
+uv run --no-sync playwright install chromium
+uv run --no-sync python sau_backend.py
 ```
 
-### 5. 配置 conf.py
+每次开启新的后端终端都需要重新设置该变量；使用此方案时，从设置过变量的终端启动服务。前端可以在另一个终端运行。`.uv-cache/` 不收入开源包。
 
-复制一份配置：
+## 如何确认安装成功
 
-```bash
-cp conf.example.py conf.py
-```
+1. `uv run --no-sync sau --help` 能输出 CLI 帮助。
+2. 初始化脚本显示数据库位于项目的 `db/database.db`。
+3. 后端启动后，`http://127.0.0.1:5409/getAccounts`、`http://127.0.0.1:5409/getFiles` 返回 `code: 200`。
+4. 打开 `http://127.0.0.1:5173/`，首页、账号管理、素材管理可加载。
+5. 可选构建检查：`npm --prefix sau_frontend run build`。
 
-Windows 也可以直接手动复制并重命名。
+这些检查验证安装和本地 Web 链路。真实平台登录、上传与定时发布仍需要对应账号、网络条件及平台权限。
 
-当前通常还会用到这些配置项：
+## CLI 与 AI Agent
 
-- `LOCAL_CHROME_PATH`
-- `LOCAL_CHROME_HEADLESS`
-- `DEBUG_MODE`
+CLI 用法见 [CLI 文档](./CLI.md)，Agent 入口见 [启动提示词](./agent-bootstrap.md)。使用 CLI 时同样通过 `uv run --no-sync sau ...` 调用。
 
-`XHS_SERVER` 目前只和小红书旧流程相关。
-
-### 6. 验证 CLI 是否可用
-
-```bash
-sau --help
-sau douyin --help
-sau kuaishou --help
-sau xiaohongshu --help
-sau bilibili --help
-```
-
-如果命令找不到，优先确认：
-
-- 当前虚拟环境是否已激活
-- 是否执行过 `uv pip install -e .`
-
-### 7. 抖音主线示例
-
-```bash
-sau douyin login --account <account_name>
-sau douyin check --account <account_name>
-sau douyin upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介"
-sau douyin upload-note --account <account_name> --images videos/1.png videos/2.png --title "图文标题" --note "图文正文"
-```
-
-### 8. 快手主线示例
-
-```bash
-sau kuaishou login --account <account_name>
-sau kuaishou check --account <account_name>
-sau kuaishou upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介"
-sau kuaishou upload-note --account <account_name> --images videos/1.png videos/2.png videos/3.png --title "图文标题" --note "图文正文"
-```
-
-### 9. 小红书主线示例
-
-```bash
-sau xiaohongshu login --account <account_name>
-sau xiaohongshu check --account <account_name>
-sau xiaohongshu upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介"
-sau xiaohongshu upload-note --account <account_name> --images videos/1.png videos/2.png videos/3.png --title "图文标题" --note "图文正文"
-```
-
-### 10. Bilibili 主线示例
-
-```bash
-sau bilibili login --account <account_name>
-sau bilibili check --account <account_name>
-sau bilibili upload-video --account <account_name> --file videos/demo.mp4 --title "示例标题" --desc "示例简介" --tid 249
-```
-
-补充说明：
-
-- `creator` 之类的名字只是示例值，真正传的是用户自定义的 `account_name`
-- 一个 `account_name` 对应一个账号文件，可以准备多个账号并发使用
-- 浏览器平台统一元数据约定：
-- 视频使用 `title + desc + tags`
-- 图文使用 `title + note + tags`
-- 用户不需要手动安装 `biliup`
-- 首次运行 Bilibili 相关命令时，程序会自动下载 `biliup`
-- 后续运行会自动检查上游 release 并自动更新
-- Bilibili 登录建议由用户自己在本地真实终端里执行；如果终端里的二维码显示不完整，可直接打开当前目录下的 `qrcode.png` 扫码
-- 如果国内网络访问 GitHub Release 较慢，可先用 `https://gh-proxy.com/` 或 `https://gh-proxy.org/` 辅助访问对应 release 地址排障
-- 示例：
-  - `https://gh-proxy.org/https://github.com/biliup/biliup/releases/download/v1.1.29/biliupR-v1.1.29-aarch64-linux.tar.xz`
-
-## For AI Agents
-
-如果你是一个可执行命令的 agent，请优先按下面顺序处理：
-
-1. 先假设仓库根目录就是当前工作目录
-2. 优先使用 `uv` 管理环境，不要默认回退到旧的 `requirements.txt`
-3. 安装命令优先使用：
-
-```bash
-uv pip install -e .
-```
-
-4. 如需浏览器驱动，优先使用：
-
-Windows PowerShell：
-
-```powershell
-$env:PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright"; patchright install chromium
-```
-
-Linux / macOS：
-
-```bash
-PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright" patchright install chromium
-```
-
-5. 安装完成后，优先检查：
-
-```bash
-sau --help
-sau douyin --help
-sau kuaishou --help
-sau xiaohongshu --help
-sau bilibili --help
-```
-
-6. 如果用户的目标是抖音或快手的登录、cookie 校验、视频上传、图文上传，优先走 CLI：
-
-```bash
-sau douyin login
-sau douyin check
-sau douyin upload-video
-sau douyin upload-note
-
-sau kuaishou login
-sau kuaishou check
-sau kuaishou upload-video
-sau kuaishou upload-note
-
-sau xiaohongshu login
-sau xiaohongshu check
-sau xiaohongshu upload-video
-sau xiaohongshu upload-note
-
-sau bilibili login
-sau bilibili check
-sau bilibili upload-video
-```
-
-7. 如果用户明确在使用 skill 系统，再引导其阅读：
-
-- `skills/douyin-upload/SKILL.md`
-- `skills/douyin-upload/references/cli-contract.md`
-- `skills/kuaishou-upload/SKILL.md`
-- `skills/kuaishou-upload/references/cli-contract.md`
-- `skills/xiaohongshu-upload/SKILL.md`
-- `skills/xiaohongshu-upload/references/cli-contract.md`
-- `skills/bilibili-upload/SKILL.md`
-- `skills/bilibili-upload/references/cli-contract.md`
-
-### 对 agent 的额外说明
-
-- 当登录流程生成本地二维码图片时，不要只把图片路径发给用户
-- 这类二维码图片本身就是给用户扫码的，agent 应优先直接展示/发送本地图片给用户扫码
-- 如果环境支持查看本地图片，优先用查看图片能力把二维码展示出来；路径只作为补充信息
-- Bilibili 登录当前不建议 agent 在非交互环境里直接代跑
-- 正确做法是让用户自己在本地终端执行 `sau bilibili login --account <name>`；如果二维码显示不完整，再提示用户打开 `qrcode.png`
-- `requirements.txt` 目前是历史兼容文件，不是主安装入口
-- `uploader/` 是核心实现目录
-- `sau_cli.py` 是当前 CLI 主入口
-- `docs/legacy-web.md` 是历史 Web 版本说明，不保证当前可用
-- Bilibili 首次运行时可能自动下载 `biliup`
+Bilibili 首次相关命令可能下载 `biliup`，需要访问其发布地址；登录建议由用户在本地真实终端执行。登录二维码和 Cookie 属于本地运行数据，不应收入公开源码。

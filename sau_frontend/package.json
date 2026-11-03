@@ -2,7 +2,7 @@
   "name": "sau-admin",
   "private": true,
   "version": "0.0.0",
-  "author": "rehat",
+  "author": "Edan.Lee",
   "type": "module",
   "scripts": {
     "dev": "vite",

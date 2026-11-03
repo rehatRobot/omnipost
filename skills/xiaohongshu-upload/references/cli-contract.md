@@ -37,7 +37,7 @@ sau xiaohongshu check --account <account>
 sau xiaohongshu upload-video \
   --account <account> \
   --file <video-path> \
-  --title "<title>" \
+  [--title "<title>"] \
   [--desc "<description>"] \
   [--tags tag1,tag2] \
   [--schedule "YYYY-MM-DD HH:MM"] \
@@ -49,8 +49,8 @@ sau xiaohongshu upload-video \
 - 必填参数:
   - `--account`
   - `--file`
-  - `--title`
 - 可选参数:
+  - `--title`
   - `--desc`
   - `--tags`
   - `--schedule`
@@ -65,7 +65,7 @@ sau xiaohongshu upload-video \
 sau xiaohongshu upload-note \
   --account <account> \
   --images <image-1> [image-2 ...] \
-  --title "<title>" \
+  [--title "<title>"] \
   [--note "<content>"] \
   [--tags tag1,tag2] \
   [--schedule "YYYY-MM-DD HH:MM"] \
@@ -76,8 +76,8 @@ sau xiaohongshu upload-note \
 - 必填参数:
   - `--account`
   - `--images`
-  - `--title`
 - 可选参数:
+  - `--title`
   - `--note`
   - `--tags`
   - `--schedule`
