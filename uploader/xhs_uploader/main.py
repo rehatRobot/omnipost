@@ -45,7 +45,7 @@ def sign_local(uri, data=None, a1="", web_session=""):
 
 def sign(uri, data=None, a1="", web_session=""):
     # 填写自己的 flask 签名服务端口地址
-    res = requests.post(f"{XHS_SERVER}/sign",
+    res = requests.post(f"{XHS_SERVER}/sign", timeout=30,
                         json={"uri": uri, "data": data, "a1": a1, "web_session": web_session})
     signs = res.json()
     return {
